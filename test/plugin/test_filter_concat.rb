@@ -24,7 +24,7 @@ class FilterConcatTest < Test::Unit::TestCase
 
     def test_exclusive
       assert_raise(Fluent::ConfigError, "n_lines and multiline_start_regexp are exclusive") do
-        create_driver(<<~CONFIG)
+        create_driver(<<-CONFIG)
           key message
           n_lines 10
           multiline_start_regexp /^start/
@@ -34,7 +34,7 @@ class FilterConcatTest < Test::Unit::TestCase
 
     def test_either
       assert_raise(Fluent::ConfigError, "Either n_lines or multiline_start_regexp is required") do
-        create_driver(<<~CONFIG)
+        create_driver(<<-CONFIG)
           key message
         CONFIG
       end
@@ -46,7 +46,7 @@ class FilterConcatTest < Test::Unit::TestCase
     end
 
     def test_multiline_start_regexp
-      d = create_driver(<<~CONFIG)
+      d = create_driver(<<-CONFIG)
         key message
         multiline_start_regexp /^start/
       CONFIG
