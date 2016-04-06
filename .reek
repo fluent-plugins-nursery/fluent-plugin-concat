@@ -1,7 +1,0 @@
-"test/plugin/":
-  FeatureEnvy:
-    enabled: false
-  UncommunicativeVariableName:
-    enabled: false
-  UtilityFunction:
-    enabled: false
