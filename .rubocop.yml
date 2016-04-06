@@ -48,3 +48,5 @@ Style/BracesAroundHashParameters:
   Enabled: false
 Style/MultilineMethodCallIndentation:
   EnforcedStyle: indented
+Style/DoubleNegation:
+  Enabled: false
