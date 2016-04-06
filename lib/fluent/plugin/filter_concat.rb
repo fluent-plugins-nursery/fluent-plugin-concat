@@ -60,7 +60,7 @@ module Fluent
       case @mode
       when :line
         @buffer << record[@key]
-        if @n_lines > 0 && @buffer.size >= @n_lines
+        if @n_lines && @buffer.size >= @n_lines
           new_record = {}
           new_record[@key] = @buffer.join(@separator)
           @buffer = []
