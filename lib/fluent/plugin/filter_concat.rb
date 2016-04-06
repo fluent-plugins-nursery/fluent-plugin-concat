@@ -73,7 +73,7 @@ module Fluent
           else
             new_record = {}
             new_record[@key] = @buffer.join(@separator)
-            @buffer = []
+            @buffer = [record[@key]]
             return new_record
           end
         else
