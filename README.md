@@ -1,8 +1,8 @@
-# Fluent::Plugin::Concat
+# fluent-plugin-concat
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/fluent/plugin/concat`. To experiment with that code, run `bin/console` for an interactive prompt.
+[![Build Status](https://travis-ci.org/okkez/fluent-plugin-concat.svg?branch=master)](https://travis-ci.org/okkez/fluent-plugin-concat)
 
-TODO: Delete this and the text above, and describe your gem
+Fluentd Filter plugin to concatenate multiline log separated in multiple events.
 
 ## Installation
 
@@ -20,20 +20,56 @@ Or install it yourself as:
 
     $ gem install fluent-plugin-concat
 
+## Configuration
+
+**key** (required)
+
+The key for part of multiline log.
+
+**separator**
+
+The separator of lines.
+
+**n\_lines**
+
+The number of lines.
+This is exclusive with `multiline_start_regex`.
+
+**multiline\_start\_regexp**
+
+The regexp to match beginning of multiline.
+This is exclusive with `n_lines.`
+
+
 ## Usage
 
-TODO: Write usage instructions here
+Every 10 events will be concatenated into one event.
 
-## Development
+```aconf
+<filter docker.log>
+  @type concat
+  key message
+  n_lines 10
+</filter>
+```
 
-After checking out the repo, run `bin/setup` to install dependencies. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+Specify first line of multiline by regular expression.
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```aconf
+<filter docker.log>
+  @type concat
+  key message
+  multiline_start_regexp /^Start/
+</filter>
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/fluent-plugin-concat. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
-
+1. Fork it
+2. Create your feature branch (`git checkout -b my-new-feature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin my-new-feature`)
+5. Create new Pull Request
 
 ## License
 

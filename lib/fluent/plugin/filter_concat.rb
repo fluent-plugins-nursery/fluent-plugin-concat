@@ -2,7 +2,7 @@ module Fluent
   class ConcatFilter < Filter
     Plugin.register_filter("concat", self)
 
-    desc "The key"
+    desc "The key for part of multiline log"
     config_param :key, :string, required: true
     desc "The separator of lines"
     config_param :separator, :string, default: "\n"
