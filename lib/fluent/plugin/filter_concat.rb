@@ -8,8 +8,6 @@ module Fluent
     config_param :separator, :string, default: "\n"
     desc "The number of lines"
     config_param :n_lines, :integer, default: nil
-    desc "The max number of lines"
-    config_param :max_n_lines, :integer, default: 1000
     desc "The regexp to match beginning of multiline"
     config_param :multiline_start_regexp, :string, default: nil
 
