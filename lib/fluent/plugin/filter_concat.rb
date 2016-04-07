@@ -61,20 +61,14 @@ module Fluent
       when :line
         @buffer << record[@key]
         if @n_lines && @buffer.size >= @n_lines
-          new_record = {}
-          new_record[@key] = @buffer.join(@separator)
-          @buffer = []
-          return new_record
+          return flush_buffer
         end
       when :regexp
         if firstline?(record[@key])
           if @buffer.empty?
             @buffer << record[@key]
           else
-            new_record = {}
-            new_record[@key] = @buffer.join(@separator)
-            @buffer = [record[@key]]
-            return new_record
+            return flush_buffer(record[@key])
           end
         else
           @buffer << record[@key]
@@ -85,6 +79,14 @@ module Fluent
 
     def firstline?(text)
       !!@multiline_start_regexp.match(text)
+    end
+
+    def flush_buffer(new_message = nil)
+      new_record = {}
+      new_record[@key] = @buffer.join(@separator)
+      @buffer = []
+      @buffer << new_message if new_message
+      new_record
     end
   end
 end
