@@ -39,11 +39,16 @@ module Fluent
       end
     end
 
+    def shutdown
+      super
+      flush_all_buffer
+    end
+
     def filter_stream(tag, es)
       new_es = MultiEventStream.new
       es.each do |time, record|
         begin
-          new_record = process(record)
+          new_record = process(tag, time, record)
           new_es.add(time, record.merge(new_record)) if new_record
         rescue => e
           router.emit_error_event(tag, time, record, e)
@@ -54,7 +59,7 @@ module Fluent
 
     private
 
-    def process(record)
+    def process(tag, time, record)
       if @stream_identity_key
         stream_identity = record[@stream_identity_key]
       else
@@ -62,19 +67,19 @@ module Fluent
       end
       case @mode
       when :line
-        @buffer[stream_identity] << record[@key]
-        if @n_lines && @buffer[stream_identity].size >= @n_lines
+        @buffer[stream_identity] << [tag, time, record]
+        if @buffer[stream_identity].size >= @n_lines
           return flush_buffer(stream_identity)
         end
       when :regexp
         if firstline?(record[@key])
           if @buffer[stream_identity].empty?
-            @buffer[stream_identity] << record[@key]
+            @buffer[stream_identity] << [tag, time, record]
           else
-            return flush_buffer(stream_identity, record[@key])
+            return flush_buffer(stream_identity, [tag, time, record])
           end
         else
-          @buffer[stream_identity] << record[@key]
+          @buffer[stream_identity] << [tag, time, record]
         end
       end
       nil
@@ -84,12 +89,29 @@ module Fluent
       !!@multiline_start_regexp.match(text)
     end
 
-    def flush_buffer(stream_identity, new_message = nil)
-      new_record = {}
-      new_record[@key] = @buffer[stream_identity].join(@separator)
+    def flush_buffer(stream_identity, new_element = nil)
+      lines = @buffer[stream_identity].map{|_tag, _time, record| record[@key] }
+      new_record = {
+        @key => lines.join(@separator)
+      }
       @buffer[stream_identity] = []
-      @buffer[stream_identity] << new_message if new_message
+      @buffer[stream_identity] << new_element if new_element
       new_record
+    end
+
+    def flush_all_buffer
+      @buffer.each do |stream_identity, elements|
+        next if elements.empty?
+        es = MultiEventStream.new
+        lines = elements.map{|_tag, _time, record| record[@key] }
+        new_record = {
+          @key => lines.join(@separator)
+        }
+        tag, time, record = elements.last
+        es.add(time, record.merge(new_record))
+        router.emit_stream(tag, es)
+      end
+      @buffer.clear
     end
   end
 end
