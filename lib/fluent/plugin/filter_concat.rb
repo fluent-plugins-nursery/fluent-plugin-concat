@@ -10,11 +10,13 @@ module Fluent
     config_param :n_lines, :integer, default: nil
     desc "The regexp to match beginning of multiline"
     config_param :multiline_start_regexp, :string, default: nil
+    desc "The key to determine which stream an event belongs to"
+    config_param :stream_identity_key, :string, default: nil
 
     def initialize
       super
 
-      @buffer = []
+      @buffer = Hash.new{|h, k| h[k] = [] }
     end
 
     def configure(conf)
@@ -53,21 +55,26 @@ module Fluent
     private
 
     def process(record)
+      if @stream_identity_key
+        stream_identity = record[@stream_identity_key]
+      else
+        stream_identity = "default"
+      end
       case @mode
       when :line
-        @buffer << record[@key]
-        if @n_lines && @buffer.size >= @n_lines
-          return flush_buffer
+        @buffer[stream_identity] << record[@key]
+        if @n_lines && @buffer[stream_identity].size >= @n_lines
+          return flush_buffer(stream_identity)
         end
       when :regexp
         if firstline?(record[@key])
           if @buffer.empty?
-            @buffer << record[@key]
+            @buffer[stream_identity] << record[@key]
           else
-            return flush_buffer(record[@key])
+            return flush_buffer(stream_identity, record[@key])
           end
         else
-          @buffer << record[@key]
+          @buffer[stream_identity] << record[@key]
         end
       end
       nil
@@ -77,11 +84,11 @@ module Fluent
       !!@multiline_start_regexp.match(text)
     end
 
-    def flush_buffer(new_message = nil)
+    def flush_buffer(stream_identity, new_message = nil)
       new_record = {}
-      new_record[@key] = @buffer.join(@separator)
-      @buffer = []
-      @buffer << new_message if new_message
+      new_record[@key] = @buffer[stream_identity].join(@separator)
+      @buffer[stream_identity] = []
+      @buffer[stream_identity] << new_message if new_message
       new_record
     end
   end
