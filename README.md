@@ -41,6 +41,10 @@ This is exclusive with `multiline_start_regex`.
 The regexp to match beginning of multiline.
 This is exclusive with `n_lines.`
 
+**multiline\_end\_regexp**
+
+The regexp to match ending of multiline.
+
 **stream\_identity\_key**
 
 The key to determine which stream an event belongs to.
