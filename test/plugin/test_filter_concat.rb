@@ -109,6 +109,23 @@ class FilterConcatTest < Test::Unit::TestCase
       filtered = filter(CONFIG, messages)
       assert_equal(expected, filtered)
     end
+
+    def test_stream_identity
+      messages = [
+        { "container_id" => "1", "message" => "message 1" },
+        { "container_id" => "2", "message" => "message 2" },
+        { "container_id" => "1", "message" => "message 3" },
+        { "container_id" => "2", "message" => "message 4" },
+        { "container_id" => "1", "message" => "message 5" },
+        { "container_id" => "2", "message" => "message 6" },
+      ]
+      expected = [
+        { "container_id" => "1", "message" => "message 1\nmessage 3\nmessage 5" },
+        { "container_id" => "2", "message" => "message 2\nmessage 4\nmessage 6" },
+      ]
+      filtered = filter(CONFIG + "stream_identity_key container_id", messages)
+      assert_equal(expected, filtered)
+    end
   end
 
   class Regexp < self
@@ -129,6 +146,31 @@ class FilterConcatTest < Test::Unit::TestCase
       expected = [
         { "host" => "example.com", "message" => "start\n  message 1\n  message 2" },
         { "host" => "example.com", "message" => "start\n  message 3\n  message 4" },
+      ]
+      filtered = filter(config, messages)
+      assert_equal(expected, filtered)
+    end
+
+    def test_stream_identity
+      config = <<-CONFIG
+        key message
+        stream_identity_key container_id
+        multiline_start_regexp /^start/
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "1", "message" => "  message 1" },
+        { "container_id" => "1", "message" => "  message 2" },
+        { "container_id" => "2", "message" => "start" },
+        { "container_id" => "2", "message" => "  message 3" },
+        { "container_id" => "2", "message" => "  message 4" },
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "2", "message" => "  message 5" },
+        { "container_id" => "2", "message" => "start" },
+      ]
+      expected = [
+        { "container_id" => "1", "message" => "start\n  message 1\n  message 2" },
+        { "container_id" => "2", "message" => "start\n  message 3\n  message 4\n  message 5" },
       ]
       filtered = filter(config, messages)
       assert_equal(expected, filtered)
