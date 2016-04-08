@@ -68,7 +68,7 @@ module Fluent
         end
       when :regexp
         if firstline?(record[@key])
-          if @buffer.empty?
+          if @buffer[stream_identity].empty?
             @buffer[stream_identity] << record[@key]
           else
             return flush_buffer(stream_identity, record[@key])
