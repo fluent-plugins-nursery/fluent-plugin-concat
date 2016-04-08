@@ -29,6 +29,7 @@ The key for part of multiline log.
 **separator**
 
 The separator of lines.
+Default value is `"\n"`.
 
 **n\_lines**
 
@@ -40,6 +41,9 @@ This is exclusive with `multiline_start_regex`.
 The regexp to match beginning of multiline.
 This is exclusive with `n_lines.`
 
+**stream\_identity\_key**
+
+The key to determine which stream an event belongs to.
 
 ## Usage
 
