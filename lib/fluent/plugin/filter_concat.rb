@@ -10,6 +10,8 @@ module Fluent
     config_param :n_lines, :integer, default: nil
     desc "The regexp to match beginning of multiline"
     config_param :multiline_start_regexp, :string, default: nil
+    desc "The regexp to match ending of multiline"
+    config_param :multiline_end_regexp, :string, default: nil
     desc "The key to determine which stream an event belongs to"
     config_param :stream_identity_key, :string, default: nil
 
@@ -34,8 +36,11 @@ module Fluent
       when @n_lines
         @mode = :line
       when @multiline_start_regexp
-        @multiline_start_regexp = Regexp.compile(@multiline_start_regexp[1..-2])
         @mode = :regexp
+        @multiline_start_regexp = Regexp.compile(@multiline_start_regexp[1..-2])
+        if @multiline_end_regexp
+          @multiline_end_regexp = Regexp.compile(@multiline_end_regexp[1..-2])
+        end
       end
     end
 
@@ -72,12 +77,16 @@ module Fluent
           return flush_buffer(stream_identity)
         end
       when :regexp
-        if firstline?(record[@key])
+        case
+        when firstline?(record[@key])
           if @buffer[stream_identity].empty?
             @buffer[stream_identity] << [tag, time, record]
           else
             return flush_buffer(stream_identity, [tag, time, record])
           end
+        when lastline?(record[@key])
+          @buffer[stream_identity] << [tag, time, record]
+          return flush_buffer(stream_identity)
         else
           @buffer[stream_identity] << [tag, time, record]
         end
@@ -87,6 +96,10 @@ module Fluent
 
     def firstline?(text)
       !!@multiline_start_regexp.match(text)
+    end
+
+    def lastline?(text)
+      @multiline_end_regexp && !!@multiline_end_regexp.match(text)
     end
 
     def flush_buffer(stream_identity, new_element = nil)
