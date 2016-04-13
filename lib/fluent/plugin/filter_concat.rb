@@ -88,7 +88,11 @@ module Fluent
           @buffer[stream_identity] << [tag, time, record]
           return flush_buffer(stream_identity)
         else
-          @buffer[stream_identity] << [tag, time, record]
+          if @buffer[stream_identity].empty?
+            return record
+          else
+            @buffer[stream_identity] << [tag, time, record]
+          end
         end
       end
       nil

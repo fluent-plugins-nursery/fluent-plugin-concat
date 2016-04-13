@@ -200,5 +200,38 @@ class FilterConcatTest < Test::Unit::TestCase
       filtered = filter(config, messages)
       assert_equal(expected, filtered)
     end
+
+    def test_multiline_with_single_line_logs
+      config = <<-CONFIG
+        key message
+        stream_identity_key container_id
+        multiline_start_regexp /^start/
+        multiline_end_regexp /^end/
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "single1" },
+        { "container_id" => "2", "message" => "single2" },
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "2", "message" => "start" },
+        { "container_id" => "1", "message" => "  message 1" },
+        { "container_id" => "2", "message" => "  message 3" },
+        { "container_id" => "1", "message" => "  message 2" },
+        { "container_id" => "2", "message" => "  message 4" },
+        { "container_id" => "1", "message" => "end" },
+        { "container_id" => "2", "message" => "end" },
+        { "container_id" => "1", "message" => "single3" },
+        { "container_id" => "2", "message" => "single4" },
+      ]
+      expected = [
+        { "container_id" => "1", "message" => "single1" },
+        { "container_id" => "2", "message" => "single2" },
+        { "container_id" => "1", "message" => "start\n  message 1\n  message 2\nend" },
+        { "container_id" => "2", "message" => "start\n  message 3\n  message 4\nend" },
+        { "container_id" => "1", "message" => "single3" },
+        { "container_id" => "2", "message" => "single4" },
+      ]
+      filtered = filter(config, messages)
+      assert_equal(expected, filtered)
+    end
   end
 end
