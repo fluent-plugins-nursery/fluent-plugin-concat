@@ -161,14 +161,14 @@ module Fluent
     def flush_remaining_buffer
       @buffer.each do |stream_identity, elements|
         next if elements.empty?
-        es = MultiEventStream.new
+
         lines = elements.map {|_tag, _time, record| record[@key] }
         new_record = {
           @key => lines.join(@separator)
         }
         tag, time, record = elements.last
-        es.add(time, record.merge(new_record))
-        router.emit_stream(tag, es)
+        message = "Flush remaining buffer: #{stream_identity}"
+        router.emit_error_event(tag, time, record.merge(new_record), TimeoutError.new(message))
       end
       @buffer.clear
     end
