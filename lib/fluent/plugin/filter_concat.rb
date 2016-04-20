@@ -18,7 +18,7 @@ module Fluent
     def initialize
       super
 
-      @buffer = Hash.new{|h, k| h[k] = [] }
+      @buffer = Hash.new {|h, k| h[k] = [] }
     end
 
     def configure(conf)
@@ -107,7 +107,7 @@ module Fluent
     end
 
     def flush_buffer(stream_identity, new_element = nil)
-      lines = @buffer[stream_identity].map{|_tag, _time, record| record[@key] }
+      lines = @buffer[stream_identity].map {|_tag, _time, record| record[@key] }
       new_record = {
         @key => lines.join(@separator)
       }
@@ -120,7 +120,7 @@ module Fluent
       @buffer.each do |stream_identity, elements|
         next if elements.empty?
         es = MultiEventStream.new
-        lines = elements.map{|_tag, _time, record| record[@key] }
+        lines = elements.map {|_tag, _time, record| record[@key] }
         new_record = {
           @key => lines.join(@separator)
         }
