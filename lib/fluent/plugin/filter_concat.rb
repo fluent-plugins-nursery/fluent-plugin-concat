@@ -91,6 +91,7 @@ module Fluent
           if @buffer[stream_identity].empty?
             return record
           else
+            # Continuation of the previous line
             @buffer[stream_identity] << [tag, time, record]
           end
         end
