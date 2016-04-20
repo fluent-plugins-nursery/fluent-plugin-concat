@@ -14,11 +14,17 @@ module Fluent
     config_param :multiline_end_regexp, :string, default: nil
     desc "The key to determine which stream an event belongs to"
     config_param :stream_identity_key, :string, default: nil
+    desc "The interval between data flushes"
+    config_param :flush_interval, :time, default: 60
+
+    class TimeoutError < StandardError
+    end
 
     def initialize
       super
 
       @buffer = Hash.new {|h, k| h[k] = [] }
+      @timeout_map = Hash.new {|h, k| h[k] = Fluent::Engine.now }
     end
 
     def configure(conf)
@@ -44,8 +50,20 @@ module Fluent
       end
     end
 
+    def start
+      super
+      @loop = Coolio::Loop.new
+      timer = TimeoutTimer.new(1, method(:on_timer))
+      @loop.attach(timer)
+      @thread = Thread.new(@loop, &:run)
+    end
+
     def shutdown
       super
+      @finished = true
+      @loop.watchers.each(&:detach)
+      @loop.stop
+      @thread.join
       flush_all_buffer
     end
 
@@ -64,12 +82,18 @@ module Fluent
 
     private
 
+    def on_timer
+      return if @finished
+      flush_timeout_buffer
+    end
+
     def process(tag, time, record)
       if @stream_identity_key
         stream_identity = "#{tag}:#{record["@stream_identity_key"]}"
       else
         stream_identity = "#{tag}:default"
       end
+      @timeout_map[stream_identity] = Fluent::Engine.now
       case @mode
       when :line
         @buffer[stream_identity] << [tag, time, record]
@@ -117,6 +141,23 @@ module Fluent
       new_record
     end
 
+    def flush_timeout_buffer
+      now = Fluent::Engine.now
+      timeout_stream_identities = []
+      @timeout_map.each do |stream_identity, previous_timestamp|
+        next unless @flush_interval > (now - previous_timestamp)
+        timeout_stream_identities << stream_identity
+        flushed_record = flush_buffer(stream_identity)
+        tag = stream_identity.split(":").first
+        message = "Timeout flush: #{stream_identity}"
+        router.emit_error_event(tag, now, flushed_record, TimeoutError.new(message))
+        log.info message
+      end
+      @timeout_map.reject! do |stream_identity, _|
+        timeout_stream_identities.include?(stream_identity)
+      end
+    end
+
     def flush_all_buffer
       @buffer.each do |stream_identity, elements|
         next if elements.empty?
@@ -130,6 +171,17 @@ module Fluent
         router.emit_stream(tag, es)
       end
       @buffer.clear
+    end
+
+    class TimeoutTimer < Coolio::TimerWatcher
+      def initialize(interval, callback)
+        super(interval, true)
+        @callback = callback
+      end
+
+      def on_timer
+        @callback.call
+      end
     end
   end
 end
