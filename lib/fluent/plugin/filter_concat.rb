@@ -64,7 +64,7 @@ module Fluent
       @loop.watchers.each(&:detach)
       @loop.stop
       @thread.join
-      flush_all_buffer
+      flush_remaining_buffer
     end
 
     def filter_stream(tag, es)
@@ -158,7 +158,7 @@ module Fluent
       end
     end
 
-    def flush_all_buffer
+    def flush_remaining_buffer
       @buffer.each do |stream_identity, elements|
         next if elements.empty?
         es = MultiEventStream.new
