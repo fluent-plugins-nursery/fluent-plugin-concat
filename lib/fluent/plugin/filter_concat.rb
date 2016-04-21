@@ -90,7 +90,7 @@ module Fluent
 
     def process(tag, time, record)
       if @stream_identity_key
-        stream_identity = "#{tag}:#{record["@stream_identity_key"]}"
+        stream_identity = "#{tag}:#{record[@stream_identity_key]}"
       else
         stream_identity = "#{tag}:default"
       end
