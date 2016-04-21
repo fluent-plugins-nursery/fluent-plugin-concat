@@ -18,6 +18,7 @@ class FilterConcatTest < Test::Unit::TestCase
   def filter(conf, messages)
     d = create_driver(conf)
     d.run do
+      sleep 0.1 # run event loop
       messages.each do |message|
         d.filter(message, @time)
       end
