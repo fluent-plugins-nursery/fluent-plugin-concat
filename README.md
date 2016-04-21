@@ -71,6 +71,17 @@ Specify first line of multiline by regular expression.
 </filter>
 ```
 
+You can handle timeout events and remaining buffers on shutdown this plugin.
+
+```aconf
+<label @ERROR>
+  <match docker.log>
+    @type file
+    path /path/to/error.log
+  </match>
+</label>
+```
+
 ## Contributing
 
 1. Fork it
