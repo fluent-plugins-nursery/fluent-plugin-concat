@@ -187,7 +187,13 @@ class FilterConcatTest < Test::Unit::TestCase
         { "container_id" => "1", "message" => "start\n  message 1\n  message 2" },
         { "container_id" => "2", "message" => "start\n  message 3\n  message 4\n  message 5" },
       ]
-      filtered = filter(config, messages)
+      filtered = filter(config, messages) do |d|
+        errored1 = { "container_id" => "1", "message" => "start" }
+        errored2 = { "container_id" => "2", "message" => "start" }
+        router = d.instance.router
+        mock(router).emit_error_event("test", anything, errored1, anything)
+        mock(router).emit_error_event("test", anything, errored2, anything)
+      end
       assert_equal(expected, filtered)
     end
 
