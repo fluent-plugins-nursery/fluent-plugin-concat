@@ -1,4 +1,5 @@
 require "bundler/setup"
 require "test-unit"
+require "test/unit/rr"
 require "fluent/test"
 require "fluent/plugin/filter_concat"

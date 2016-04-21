@@ -15,13 +15,15 @@ class FilterConcatTest < Test::Unit::TestCase
     Fluent::Test::FilterTestDriver.new(Fluent::ConcatFilter, tag).configure(conf, true)
   end
 
-  def filter(conf, messages)
+  def filter(conf, messages, wait: nil)
     d = create_driver(conf)
+    yield d if block_given?
     d.run do
       sleep 0.1 # run event loop
       messages.each do |message|
         d.filter(message, @time)
       end
+      sleep wait if wait
     end
     filtered = d.filtered_as_array
     filtered.map {|m| m[2] }
@@ -126,6 +128,18 @@ class FilterConcatTest < Test::Unit::TestCase
       ]
       filtered = filter(CONFIG + "stream_identity_key container_id", messages)
       assert_equal(expected, filtered)
+    end
+
+    def test_timeout
+      messages = [
+        { "container_id" => "1", "message" => "message 1" },
+        { "container_id" => "1", "message" => "message 2" },
+      ]
+      filtered = filter(CONFIG + "flush_interval 1s", messages, wait: 3) do |d|
+        errored = { "container_id" => "1", "message" => "message 1\nmessage 2" }
+        mock(d.instance.router).emit_error_event("test", anything, errored, anything)
+      end
+      assert_equal([], filtered)
     end
   end
 
@@ -233,6 +247,24 @@ class FilterConcatTest < Test::Unit::TestCase
       ]
       filtered = filter(config, messages)
       assert_equal(expected, filtered)
+    end
+
+    def test_timeout
+      config = <<-CONFIG
+        key message
+        multiline_start_regexp /^start/
+        flush_interval 1s
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "1", "message" => "  message 1" },
+        { "container_id" => "1", "message" => "  message 2" },
+      ]
+      filtered = filter(config + "flush_interval 1s", messages, wait: 3) do |d|
+        errored = { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }
+        mock(d.instance.router).emit_error_event("test", anything, errored, anything)
+      end
+      assert_equal([], filtered)
     end
   end
 end
