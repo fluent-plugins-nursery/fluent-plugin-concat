@@ -52,6 +52,7 @@ module Fluent
 
     def start
       super
+      @finished = false
       @loop = Coolio::Loop.new
       timer = TimeoutTimer.new(1, method(:on_timer))
       @loop.attach(timer)
