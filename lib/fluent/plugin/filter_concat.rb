@@ -151,7 +151,7 @@ module Fluent
         timeout_stream_identities << stream_identity
         tag = stream_identity.split(":").first
         message = "Timeout flush: #{stream_identity}"
-        router.emit_error_event(tag, now, flushed_record, TimeoutError.new(message))
+        handle_timeout_error(tag, now, flushed_record, message)
         log.info message
       end
       @timeout_map.reject! do |stream_identity, _|
@@ -169,9 +169,13 @@ module Fluent
         }
         tag, time, record = elements.last
         message = "Flush remaining buffer: #{stream_identity}"
-        router.emit_error_event(tag, time, record.merge(new_record), TimeoutError.new(message))
+        handle_timeout_error(tag, time, record.merge(new_record), message)
       end
       @buffer.clear
+    end
+
+    def handle_timeout_error(tag, time, record, message)
+      router.emit_error_event(tag, time, record, TimeoutError.new(message))
     end
 
     class TimeoutTimer < Coolio::TimerWatcher
