@@ -16,6 +16,8 @@ module Fluent
     config_param :stream_identity_key, :string, default: nil
     desc "The interval between data flushes"
     config_param :flush_interval, :time, default: 60
+    desc "The label name to handle timeout"
+    config_param :timeout_label, :string, default: nil
 
     class TimeoutError < StandardError
     end
@@ -177,7 +179,12 @@ module Fluent
     end
 
     def handle_timeout_error(tag, time, record, message)
-      router.emit_error_event(tag, time, record, TimeoutError.new(message))
+      if @timeout_label
+        label = Engine.root_agent.find_label(@timeout_label)
+        label.event_router.emit(tag, time, record)
+      else
+        router.emit_error_event(tag, time, record, TimeoutError.new(message))
+      end
     end
 
     class TimeoutTimer < Coolio::TimerWatcher
