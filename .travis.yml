@@ -3,5 +3,10 @@ language: ruby
 
 rvm:
   - 2.1.8
-  - 2.2.4
-  - 2.3.0
+  - 2.2.5
+  - 2.3.1
+
+gemfile:
+  - Gemfile
+  - gemfiles/fluentd_v0.12.gemfile
+  - gemfiles/fluentd_v0.14.gemfile
