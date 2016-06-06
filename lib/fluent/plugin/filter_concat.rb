@@ -152,7 +152,7 @@ module Fluent
         tag = stream_identity.split(":").first
         message = "Timeout flush: #{stream_identity}"
         handle_timeout_error(tag, now, flushed_record, message)
-        log.info message
+        log.info(message)
       end
       @timeout_map.reject! do |stream_identity, _|
         timeout_stream_identities.include?(stream_identity)
@@ -170,6 +170,7 @@ module Fluent
         tag, time, record = elements.last
         message = "Flush remaining buffer: #{stream_identity}"
         handle_timeout_error(tag, time, record.merge(new_record), message)
+        log.info(message)
       end
       @buffer.clear
     end
