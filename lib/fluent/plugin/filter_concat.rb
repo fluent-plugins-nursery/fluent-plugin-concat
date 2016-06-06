@@ -134,12 +134,13 @@ module Fluent
 
     def flush_buffer(stream_identity, new_element = nil)
       lines = @buffer[stream_identity].map {|_tag, _time, record| record[@key] }
+      _tag, _time, last_record = @buffer[stream_identity].last
       new_record = {
         @key => lines.join(@separator)
       }
       @buffer[stream_identity] = []
       @buffer[stream_identity] << new_element if new_element
-      new_record
+      last_record.merge(new_record)
     end
 
     def flush_timeout_buffer
