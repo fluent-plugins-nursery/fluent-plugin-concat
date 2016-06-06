@@ -135,11 +135,27 @@ class FilterConcatTest < Test::Unit::TestCase
         { "container_id" => "1", "message" => "message 1" },
         { "container_id" => "1", "message" => "message 2" },
       ]
-      filtered = filter(CONFIG + "flush_interval 1s", messages, wait: 3) do |d|
+      filtered = filter(CONFIG + "flush_interval 2s", messages, wait: 3) do |d|
         errored = { "container_id" => "1", "message" => "message 1\nmessage 2" }
         mock(d.instance.router).emit_error_event("test", anything, errored, anything)
       end
       assert_equal([], filtered)
+    end
+
+    def test_no_timeout
+      messages = [
+        { "container_id" => "1", "message" => "message 1" },
+        { "container_id" => "1", "message" => "message 2" },
+        { "container_id" => "1", "message" => "message 3" },
+      ]
+      filtered = filter(CONFIG + "flush_interval 30s", messages, wait: 3) do |d|
+        errored = { "container_id" => "1", "message" => "message 1\nmessage 2\nmessage 3" }
+        mock(d.instance.router).emit_error_event("test", anything, errored, anything).times(0)
+      end
+      expected = [
+        { "container_id" => "1", "message" => "message 1\nmessage 2\nmessage 3" },
+      ]
+      assert_equal(expected, filtered)
     end
   end
 

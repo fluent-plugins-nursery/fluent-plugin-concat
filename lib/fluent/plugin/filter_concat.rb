@@ -146,9 +146,9 @@ module Fluent
       now = Fluent::Engine.now
       timeout_stream_identities = []
       @timeout_map.each do |stream_identity, previous_timestamp|
-        next unless @flush_interval > (now - previous_timestamp)
-        timeout_stream_identities << stream_identity
+        next if @flush_interval > (now - previous_timestamp)
         flushed_record = flush_buffer(stream_identity)
+        timeout_stream_identities << stream_identity
         tag = stream_identity.split(":").first
         message = "Timeout flush: #{stream_identity}"
         router.emit_error_event(tag, now, flushed_record, TimeoutError.new(message))
