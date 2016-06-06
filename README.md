@@ -49,6 +49,10 @@ The regexp to match ending of multiline.
 
 The key to determine which stream an event belongs to.
 
+**flush\_interval**
+
+The number of seconds after which the last received event log will be flushed.
+
 ## Usage
 
 Every 10 events will be concatenated into one event.
