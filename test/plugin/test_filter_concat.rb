@@ -142,6 +142,20 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal([], filtered)
     end
 
+    def test_timeout_with_timeout_label
+      messages = [
+        { "container_id" => "1", "message" => "message 1" },
+        { "container_id" => "1", "message" => "message 2" },
+      ]
+      filtered = filter(CONFIG + "flush_interval 2s\ntimeout_label @TIMEOUT", messages, wait: 3) do |d|
+        errored = { "container_id" => "1", "message" => "message 1\nmessage 2" }
+        event_router = mock(Object.new).emit("test", anything, errored)
+        label = mock(Object.new).event_router { event_router }
+        mock(Fluent::Engine.root_agent).find_label("@TIMEOUT") { label }
+      end
+      assert_equal([], filtered)
+    end
+
     def test_no_timeout
       messages = [
         { "container_id" => "1", "message" => "message 1" },
