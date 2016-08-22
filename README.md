@@ -53,6 +53,10 @@ The key to determine which stream an event belongs to.
 
 The number of seconds after which the last received event log will be flushed.
 
+**use\_first\_timestamp**
+
+Use timestamp of first record when buffer is flushed.
+
 ## Usage
 
 Every 10 events will be concatenated into one event.
