@@ -298,6 +298,28 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
+    def test_multiline_start_end_regexp
+      config = <<-CONFIG
+        key message
+        stream_identity_key container_id
+        multiline_start_regexp /^start/
+        multiline_end_regexp /end$/
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start message end" },
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "1", "message" => " message1" },
+        { "container_id" => "1", "message" => " message2" },
+        { "container_id" => "1", "message" => "end" },
+      ]
+      expected = [
+        { "container_id" => "1", "message" => "start message end" },
+        { "container_id" => "1", "message" => "start\n message1\n message2\nend" },
+      ]
+      filtered = filter(config, messages)
+      assert_equal(expected, filtered)
+    end
+
     def test_timeout
       config = <<-CONFIG
         key message

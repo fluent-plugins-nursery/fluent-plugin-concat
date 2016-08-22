@@ -109,17 +109,18 @@ module Fluent
           return flush_buffer(stream_identity)
         end
       when :regexp
-        case
-        when firstline?(record[@key])
+        if firstline?(record[@key])
           if @buffer[stream_identity].empty?
             @buffer[stream_identity] << [tag, time, record]
           else
             return flush_buffer(stream_identity, [tag, time, record])
           end
-        when lastline?(record[@key])
-          @buffer[stream_identity] << [tag, time, record]
+        end
+        if lastline?(record[@key])
+          @buffer[stream_identity] << [tag, time, record] unless firstline?(record[@key])
           return flush_buffer(stream_identity)
-        else
+        end
+        if !firstline?(record[@key]) && !lastline?(record[@key])
           if @buffer[stream_identity].empty?
             return [time, record]
           else
@@ -132,7 +133,7 @@ module Fluent
     end
 
     def firstline?(text)
-      !!@multiline_start_regexp.match(text)
+      @multiline_start_regexp && !!@multiline_start_regexp.match(text)
     end
 
     def lastline?(text)
