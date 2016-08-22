@@ -14,7 +14,7 @@ module Fluent
     config_param :multiline_end_regexp, :string, default: nil
     desc "The key to determine which stream an event belongs to"
     config_param :stream_identity_key, :string, default: nil
-    desc "The interval between data flushes"
+    desc "The interval between data flushes, 0 means disable timeout"
     config_param :flush_interval, :time, default: 60
     desc "The label name to handle timeout"
     config_param :timeout_label, :string, default: nil
@@ -91,6 +91,7 @@ module Fluent
     private
 
     def on_timer
+      return if @flush_interval <= 0
       return if @finished
       flush_timeout_buffer
     end
