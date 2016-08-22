@@ -295,7 +295,7 @@ class FilterConcatTest < Test::Unit::TestCase
         { "container_id" => "1", "message" => "  message 1" },
         { "container_id" => "1", "message" => "  message 2" },
       ]
-      filtered = filter(config + "flush_interval 1s", messages, wait: 3) do |d|
+      filtered = filter(config, messages, wait: 3) do |d|
         errored = { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }
         mock(d.instance.router).emit_error_event("test", anything, errored, anything)
       end
