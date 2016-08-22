@@ -18,6 +18,8 @@ module Fluent
     config_param :flush_interval, :time, default: 60
     desc "The label name to handle timeout"
     config_param :timeout_label, :string, default: nil
+    desc "Use timestamp of first record when buffer is flushed"
+    config_param :use_first_timestamp, :bool, default: false
 
     class TimeoutError < StandardError
     end
@@ -74,8 +76,11 @@ module Fluent
       new_es = MultiEventStream.new
       es.each do |time, record|
         begin
-          new_record = process(tag, time, record)
-          new_es.add(time, record.merge(new_record)) if new_record
+          new_time, new_record = process(tag, time, record)
+          if new_record
+            time = new_time if @use_first_timestamp
+            new_es.add(time, record.merge(new_record))
+          end
         rescue => e
           router.emit_error_event(tag, time, record, e)
         end
@@ -116,7 +121,7 @@ module Fluent
           return flush_buffer(stream_identity)
         else
           if @buffer[stream_identity].empty?
-            return record
+            return [time, record]
           else
             # Continuation of the previous line
             @buffer[stream_identity] << [tag, time, record]
@@ -136,13 +141,13 @@ module Fluent
 
     def flush_buffer(stream_identity, new_element = nil)
       lines = @buffer[stream_identity].map {|_tag, _time, record| record[@key] }
-      _tag, _time, last_record = @buffer[stream_identity].last
+      _tag, time, first_record = @buffer[stream_identity].first
       new_record = {
         @key => lines.join(@separator)
       }
       @buffer[stream_identity] = []
       @buffer[stream_identity] << new_element if new_element
-      last_record.merge(new_record)
+      [time, first_record.merge(new_record)]
     end
 
     def flush_timeout_buffer
@@ -150,11 +155,11 @@ module Fluent
       timeout_stream_identities = []
       @timeout_map.each do |stream_identity, previous_timestamp|
         next if @flush_interval > (now - previous_timestamp)
-        flushed_record = flush_buffer(stream_identity)
+        time, flushed_record = flush_buffer(stream_identity)
         timeout_stream_identities << stream_identity
         tag = stream_identity.split(":").first
         message = "Timeout flush: #{stream_identity}"
-        handle_timeout_error(tag, now, flushed_record, message)
+        handle_timeout_error(tag, @use_first_timestamp ? time : now, flushed_record, message)
         log.info(message)
       end
       @timeout_map.reject! do |stream_identity, _|
@@ -170,7 +175,7 @@ module Fluent
         new_record = {
           @key => lines.join(@separator)
         }
-        tag, time, record = elements.last
+        tag, time, record = elements.first
         message = "Flush remaining buffer: #{stream_identity}"
         handle_timeout_error(tag, time, record.merge(new_record), message)
         log.info(message)
