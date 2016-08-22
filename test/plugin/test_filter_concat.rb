@@ -29,6 +29,19 @@ class FilterConcatTest < Test::Unit::TestCase
     filtered.map {|m| m[2] }
   end
 
+  def filter_with_time(conf, messages, wait: nil)
+    d = create_driver(conf)
+    yield d if block_given?
+    d.run do
+      sleep 0.1 # run event loop
+      messages.each do |message, time|
+        d.filter(message, time)
+      end
+      sleep wait if wait
+    end
+    d.filtered_as_array
+  end
+
   class Config < self
     def test_empty
       assert_raise(Fluent::ConfigError, "key parameter is required") do
@@ -287,6 +300,57 @@ class FilterConcatTest < Test::Unit::TestCase
         mock(d.instance.router).emit_error_event("test", anything, errored, anything)
       end
       assert_equal([], filtered)
+    end
+  end
+
+  class UseFirstTimestamp < self
+    def test_filter_true
+      messages = [
+        [{ "host" => "example.com", "message" => "message 1" }, @time],
+        [{ "host" => "example.com", "message" => "message 2" }, @time + 1],
+        [{ "host" => "example.com", "message" => "message 3" }, @time + 2],
+      ]
+      expected = { "host" => "example.com", "message" => "message 1\nmessage 2\nmessage 3" }
+      conf = CONFIG + "use_first_timestamp true"
+      filtered = filter_with_time(conf, messages)
+      assert_equal(@time, filtered[0][1])
+      assert_equal(expected, filtered[0][2])
+    end
+
+    def test_filter_false
+      messages = [
+        [{ "host" => "example.com", "message" => "message 1" }, @time],
+        [{ "host" => "example.com", "message" => "message 2" }, @time + 1],
+        [{ "host" => "example.com", "message" => "message 3" }, @time + 2],
+      ]
+      expected = { "host" => "example.com", "message" => "message 1\nmessage 2\nmessage 3" }
+      conf = CONFIG + "use_first_timestamp false"
+      filtered = filter_with_time(conf, messages)
+      assert_equal(@time + 2, filtered[0][1])
+      assert_equal(expected, filtered[0][2])
+    end
+
+    def test_timeout
+      config = <<-CONFIG
+        key message
+        multiline_start_regexp /^start/
+        flush_interval 1s
+        use_first_timestamp true
+      CONFIG
+      messages = [
+        [{ "container_id" => "1", "message" => "start" }, @time],
+        [{ "container_id" => "1", "message" => "  message 1" }, @time],
+        [{ "container_id" => "1", "message" => "  message 2" }, @time],
+        [{ "container_id" => "1", "message" => "start" }, @time],
+        [{ "container_id" => "1", "message" => "  message 3" }, @time + 1],
+        [{ "container_id" => "1", "message" => "  message 4" }, @time + 2],
+      ]
+      filtered = filter_with_time(config, messages, wait: 3) do |d|
+        errored = { "container_id" => "1", "message" => "start\n  message 3\n  message 4" }
+        mock(d.instance.router).emit_error_event("test", @time, errored, anything)
+      end
+      expected = { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }
+      assert_equal(expected, filtered[0][2])
     end
   end
 end
