@@ -52,6 +52,7 @@ The key to determine which stream an event belongs to.
 **flush\_interval**
 
 The number of seconds after which the last received event log will be flushed.
+If specified 0, wait for next line forever.
 
 **use\_first\_timestamp**
 

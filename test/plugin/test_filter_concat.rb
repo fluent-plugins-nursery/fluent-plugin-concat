@@ -388,5 +388,27 @@ class FilterConcatTest < Test::Unit::TestCase
       expected = { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }
       assert_equal(expected, filtered[0][2])
     end
+
+    def test_disable_timeout
+      config = <<-CONFIG
+        key message
+        multiline_start_regexp /^start/
+        flush_interval 0s
+        use_first_timestamp true
+      CONFIG
+      messages = [
+        [{ "container_id" => "1", "message" => "start" }, @time],
+        [{ "container_id" => "1", "message" => "  message 1" }, @time],
+        [{ "container_id" => "1", "message" => "  message 2" }, @time],
+        [{ "container_id" => "1", "message" => "start" }, @time],
+      ]
+      filtered = filter_with_time(config, messages, wait: 3) do |d|
+        mock(d.instance).flush_timeout_buffer.at_most(0)
+        errored = { "container_id" => "1", "message" => "start" }
+        mock(d.instance.router).emit_error_event("test", @time, errored, anything)
+      end
+      expected = { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }
+      assert_equal(expected, filtered[0][2])
+    end
   end
 end
