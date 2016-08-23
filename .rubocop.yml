@@ -50,3 +50,6 @@ Style/MultilineMethodCallIndentation:
   EnforcedStyle: indented
 Style/DoubleNegation:
   Enabled: false
+Style/EmptyCaseCondition:
+  Enabled: false
+
