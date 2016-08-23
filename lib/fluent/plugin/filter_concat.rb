@@ -110,18 +110,18 @@ module Fluent
           return flush_buffer(stream_identity)
         end
       when :regexp
-        if firstline?(record[@key])
+        case
+        when firstline?(record[@key])
           if @buffer[stream_identity].empty?
             @buffer[stream_identity] << [tag, time, record]
+            return flush_buffer(stream_identity) if lastline?(record[@key])
           else
             return flush_buffer(stream_identity, [tag, time, record])
           end
-        end
-        if lastline?(record[@key])
-          @buffer[stream_identity] << [tag, time, record] unless firstline?(record[@key])
+        when lastline?(record[@key])
+          @buffer[stream_identity] << [tag, time, record]
           return flush_buffer(stream_identity)
-        end
-        if !firstline?(record[@key]) && !lastline?(record[@key])
+        else
           if @buffer[stream_identity].empty?
             return [time, record]
           else
