@@ -76,10 +76,12 @@ module Fluent
       new_es = MultiEventStream.new
       es.each do |time, record|
         begin
-          new_time, new_record = process(tag, time, record)
-          if new_record
-            time = new_time if @use_first_timestamp
-            new_es.add(time, record.merge(new_record))
+          flushed_es = process(tag, time, record)
+          unless flushed_es.empty?
+            flushed_es.each do |_time, new_record|
+              time = _time if @use_first_timestamp
+              new_es.add(time, record.merge(new_record))
+            end
           end
         rescue => e
           router.emit_error_event(tag, time, record, e)
@@ -97,6 +99,7 @@ module Fluent
     end
 
     def process(tag, time, record)
+      new_es = MultiEventStream.new
       if @stream_identity_key
         stream_identity = "#{tag}:#{record[@stream_identity_key]}"
       else
@@ -107,30 +110,49 @@ module Fluent
       when :line
         @buffer[stream_identity] << [tag, time, record]
         if @buffer[stream_identity].size >= @n_lines
-          return flush_buffer(stream_identity)
+          new_time, new_record = flush_buffer(stream_identity)
+          time = new_time if @use_first_timestamp
+          new_es.add(time, new_record)
+          return new_es
         end
       when :regexp
-        if firstline?(record[@key])
+        case
+        when firstline?(record[@key])
           if @buffer[stream_identity].empty?
             @buffer[stream_identity] << [tag, time, record]
+            if lastline?(record[@key])
+              new_time, new_record = flush_buffer(stream_identity)
+              time = new_time if @use_first_timestamp
+              new_es.add(time, new_record)
+            end
           else
-            return flush_buffer(stream_identity, [tag, time, record])
+            new_time, new_record = flush_buffer(stream_identity, [tag, time, record])
+            time = new_time if @use_first_timestamp
+            new_es.add(time, new_record)
+            if lastline?(record[@key])
+              new_time, new_record = flush_buffer(stream_identity)
+              time = new_time if @use_first_timestamp
+              new_es.add(time, new_record)
+            end
+            return new_es
           end
-        end
-        if lastline?(record[@key])
-          @buffer[stream_identity] << [tag, time, record] unless firstline?(record[@key])
-          return flush_buffer(stream_identity)
-        end
-        if !firstline?(record[@key]) && !lastline?(record[@key])
+        when lastline?(record[@key])
+          @buffer[stream_identity] << [tag, time, record]
+          new_time, new_record = flush_buffer(stream_identity)
+          time = new_time if @use_first_timestamp
+          new_es.add(time, new_record)
+          return new_es
+        else
           if @buffer[stream_identity].empty?
-            return [time, record]
+            new_es.add(time, record)
+            return new_es
           else
             # Continuation of the previous line
             @buffer[stream_identity] << [tag, time, record]
           end
         end
       end
-      nil
+      new_es
     end
 
     def firstline?(text)
