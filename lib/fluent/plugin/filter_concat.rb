@@ -157,6 +157,7 @@ module Fluent
       timeout_stream_identities = []
       @timeout_map.each do |stream_identity, previous_timestamp|
         next if @flush_interval > (now - previous_timestamp)
+        next if @buffer[stream_identity].empty?
         time, flushed_record = flush_buffer(stream_identity)
         timeout_stream_identities << stream_identity
         tag = stream_identity.split(":").first
