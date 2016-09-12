@@ -4,6 +4,8 @@ module Fluent::Plugin
   class ConcatFilter < Filter
     Fluent::Plugin.register_filter("concat", self)
 
+    helpers :timer
+
     desc "The key for part of multiline log"
     config_param :key, :string, required: true
     desc "The separator of lines"
@@ -59,18 +61,12 @@ module Fluent::Plugin
     def start
       super
       @finished = false
-      @loop = Coolio::Loop.new
-      timer = TimeoutTimer.new(1, method(:on_timer))
-      @loop.attach(timer)
-      @thread = Thread.new(@loop, &:run)
+      timer_execute(:filter_concat_timer, 1, &method(:on_timer))
     end
 
     def shutdown
       super
       @finished = true
-      @loop.watchers.each(&:detach)
-      @loop.stop
-      @thread.join
       flush_remaining_buffer
     end
 
@@ -216,17 +212,6 @@ module Fluent::Plugin
         label.event_router.emit(tag, time, record)
       else
         router.emit_error_event(tag, time, record, TimeoutError.new(message))
-      end
-    end
-
-    class TimeoutTimer < Coolio::TimerWatcher
-      def initialize(interval, callback)
-        super(interval, true)
-        @callback = callback
-      end
-
-      def on_timer
-        @callback.call
       end
     end
   end
