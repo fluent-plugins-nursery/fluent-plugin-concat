@@ -1,5 +1,9 @@
 # ChangeLog
 
+## v1.0.0
+
+Same as v0.6.2, just bump up version.
+
 ## v0.6.2
 
 ### Fixes

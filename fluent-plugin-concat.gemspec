@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-concat"
-  spec.version       = "0.6.2"
+  spec.version       = "1.0.0"
   spec.authors       = ["Kenji Okimoto"]
   spec.email         = ["okimoto@clear-code.com"]
 
