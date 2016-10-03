@@ -25,8 +25,7 @@ class FilterConcatTest < Test::Unit::TestCase
       end
       sleep wait if wait
     end
-    filtered = d.filtered
-    filtered.map {|e| e.last }
+    d.filtered_records
   end
 
   def filter_with_time(conf, messages, wait: nil)
@@ -34,7 +33,7 @@ class FilterConcatTest < Test::Unit::TestCase
     yield d if block_given?
     d.run(default_tag: "test") do
       sleep 0.1 # run event loop
-      messages.each do |message, time|
+      messages.each do |time, message|
         d.feed(time, message)
       end
       sleep wait if wait
@@ -369,28 +368,30 @@ class FilterConcatTest < Test::Unit::TestCase
   class UseFirstTimestamp < self
     def test_filter_true
       messages = [
-        [{ "host" => "example.com", "message" => "message 1" }, @time],
-        [{ "host" => "example.com", "message" => "message 2" }, @time + 1],
-        [{ "host" => "example.com", "message" => "message 3" }, @time + 2],
+        [@time, { "host" => "example.com", "message" => "message 1" }],
+        [@time + 1, { "host" => "example.com", "message" => "message 2" }],
+        [@time + 2, { "host" => "example.com", "message" => "message 3" }],
       ]
-      expected = { "host" => "example.com", "message" => "message 1\nmessage 2\nmessage 3" }
+      expected = [
+        [@time, { "host" => "example.com", "message" => "message 1\nmessage 2\nmessage 3" }]
+      ]
       conf = CONFIG + "use_first_timestamp true"
       filtered = filter_with_time(conf, messages)
-      assert_equal(@time, filtered.map{|e| e.first }.first)
-      assert_equal(expected, filtered.map{|e| e.last }.first)
+      assert_equal(expected, filtered)
     end
 
     def test_filter_false
       messages = [
-        [{ "host" => "example.com", "message" => "message 1" }, @time],
-        [{ "host" => "example.com", "message" => "message 2" }, @time + 1],
-        [{ "host" => "example.com", "message" => "message 3" }, @time + 2],
+        [@time, { "host" => "example.com", "message" => "message 1" }],
+        [@time + 1, { "host" => "example.com", "message" => "message 2" }],
+        [@time + 2, { "host" => "example.com", "message" => "message 3" }],
       ]
-      expected = { "host" => "example.com", "message" => "message 1\nmessage 2\nmessage 3" }
+      expected = [
+        [@time + 2, { "host" => "example.com", "message" => "message 1\nmessage 2\nmessage 3" }]
+      ]
       conf = CONFIG + "use_first_timestamp false"
       filtered = filter_with_time(conf, messages)
-      assert_equal(@time + 2, filtered.map{|e| e.first }.first)
-      assert_equal(expected, filtered.map{|e| e.last }.first)
+      assert_equal(expected, filtered)
     end
 
     def test_timeout
@@ -401,19 +402,21 @@ class FilterConcatTest < Test::Unit::TestCase
         use_first_timestamp true
       CONFIG
       messages = [
-        [{ "container_id" => "1", "message" => "start" }, @time],
-        [{ "container_id" => "1", "message" => "  message 1" }, @time],
-        [{ "container_id" => "1", "message" => "  message 2" }, @time],
-        [{ "container_id" => "1", "message" => "start" }, @time],
-        [{ "container_id" => "1", "message" => "  message 3" }, @time + 1],
-        [{ "container_id" => "1", "message" => "  message 4" }, @time + 2],
+        [@time, { "container_id" => "1", "message" => "start" }],
+        [@time, { "container_id" => "1", "message" => "  message 1" }],
+        [@time, { "container_id" => "1", "message" => "  message 2" }],
+        [@time, { "container_id" => "1", "message" => "start" }],
+        [@time + 1, { "container_id" => "1", "message" => "  message 3" }],
+        [@time + 2, { "container_id" => "1", "message" => "  message 4" }],
       ]
       filtered = filter_with_time(config, messages, wait: 3) do |d|
         errored = { "container_id" => "1", "message" => "start\n  message 3\n  message 4" }
         mock(d.instance.router).emit_error_event("test", @time, errored, anything)
       end
-      expected = { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }
-      assert_equal(expected, filtered.map{|e| e.last }.first)
+      expected = [
+        [@time, { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }]
+      ]
+      assert_equal(expected, filtered)
     end
 
     def test_disable_timeout
@@ -424,18 +427,20 @@ class FilterConcatTest < Test::Unit::TestCase
         use_first_timestamp true
       CONFIG
       messages = [
-        [{ "container_id" => "1", "message" => "start" }, @time],
-        [{ "container_id" => "1", "message" => "  message 1" }, @time],
-        [{ "container_id" => "1", "message" => "  message 2" }, @time],
-        [{ "container_id" => "1", "message" => "start" }, @time],
+        [@time, { "container_id" => "1", "message" => "start" }],
+        [@time, { "container_id" => "1", "message" => "  message 1" }],
+        [@time, { "container_id" => "1", "message" => "  message 2" }],
+        [@time, { "container_id" => "1", "message" => "start" }],
       ]
       filtered = filter_with_time(config, messages, wait: 3) do |d|
         mock(d.instance).flush_timeout_buffer.at_most(0)
         errored = { "container_id" => "1", "message" => "start" }
         mock(d.instance.router).emit_error_event("test", @time, errored, anything)
       end
-      expected = { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }
-      assert_equal(expected, filtered.map{|e| e.last }.first)
+      expected = [
+        [@time, { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }]
+      ]
+      assert_equal(expected, filtered)
     end
   end
 end
