@@ -1,5 +1,5 @@
 require "helper"
-
+require "fluent/test/driver/filter"
 class FilterConcatTest < Test::Unit::TestCase
   def setup
     Fluent::Test.setup
@@ -11,35 +11,35 @@ class FilterConcatTest < Test::Unit::TestCase
     n_lines 3
   ]
 
-  def create_driver(conf = CONFIG, tag = "test")
-    Fluent::Test::FilterTestDriver.new(Fluent::ConcatFilter, tag).configure(conf, true)
+  def create_driver(conf = CONFIG)
+    Fluent::Test::Driver::Filter.new(Fluent::Plugin::ConcatFilter).configure(conf, syntax: :v1)
   end
 
   def filter(conf, messages, wait: nil)
     d = create_driver(conf)
     yield d if block_given?
-    d.run do
+    d.run(default_tag: "test") do
       sleep 0.1 # run event loop
       messages.each do |message|
-        d.filter(message, @time)
+        d.feed(@time, message)
       end
       sleep wait if wait
     end
-    filtered = d.filtered_as_array
-    filtered.map {|m| m[2] }
+    filtered = d.filtered
+    filtered.map {|e| e.last }
   end
 
   def filter_with_time(conf, messages, wait: nil)
     d = create_driver(conf)
     yield d if block_given?
-    d.run do
+    d.run(default_tag: "test") do
       sleep 0.1 # run event loop
       messages.each do |message, time|
-        d.filter(message, time)
+        d.feed(time, message)
       end
       sleep wait if wait
     end
-    d.filtered_as_array
+    d.filtered
   end
 
   class Config < self
@@ -376,8 +376,8 @@ class FilterConcatTest < Test::Unit::TestCase
       expected = { "host" => "example.com", "message" => "message 1\nmessage 2\nmessage 3" }
       conf = CONFIG + "use_first_timestamp true"
       filtered = filter_with_time(conf, messages)
-      assert_equal(@time, filtered[0][1])
-      assert_equal(expected, filtered[0][2])
+      assert_equal(@time, filtered.map{|e| e.first }.first)
+      assert_equal(expected, filtered.map{|e| e.last }.first)
     end
 
     def test_filter_false
@@ -389,8 +389,8 @@ class FilterConcatTest < Test::Unit::TestCase
       expected = { "host" => "example.com", "message" => "message 1\nmessage 2\nmessage 3" }
       conf = CONFIG + "use_first_timestamp false"
       filtered = filter_with_time(conf, messages)
-      assert_equal(@time + 2, filtered[0][1])
-      assert_equal(expected, filtered[0][2])
+      assert_equal(@time + 2, filtered.map{|e| e.first }.first)
+      assert_equal(expected, filtered.map{|e| e.last }.first)
     end
 
     def test_timeout
@@ -413,7 +413,7 @@ class FilterConcatTest < Test::Unit::TestCase
         mock(d.instance.router).emit_error_event("test", @time, errored, anything)
       end
       expected = { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }
-      assert_equal(expected, filtered[0][2])
+      assert_equal(expected, filtered.map{|e| e.last }.first)
     end
 
     def test_disable_timeout
@@ -435,7 +435,7 @@ class FilterConcatTest < Test::Unit::TestCase
         mock(d.instance.router).emit_error_event("test", @time, errored, anything)
       end
       expected = { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }
-      assert_equal(expected, filtered[0][2])
+      assert_equal(expected, filtered.map{|e| e.last }.first)
     end
   end
 end

@@ -1,6 +1,10 @@
-module Fluent
+require 'fluent/plugin/filter'
+
+module Fluent::Plugin
   class ConcatFilter < Filter
-    Plugin.register_filter("concat", self)
+    Fluent::Plugin.register_filter("concat", self)
+
+    helpers :timer
 
     desc "The key for part of multiline log"
     config_param :key, :string, required: true
@@ -35,10 +39,10 @@ module Fluent
       super
 
       if @n_lines && @multiline_start_regexp
-        raise ConfigError, "n_lines and multiline_start_regexp are exclusive"
+        raise Fluent::ConfigError, "n_lines and multiline_start_regexp are exclusive"
       end
       if @n_lines.nil? && @multiline_start_regexp.nil?
-        raise ConfigError, "Either n_lines or multiline_start_regexp is required"
+        raise Fluent::ConfigError, "Either n_lines or multiline_start_regexp is required"
       end
 
       @mode = nil
@@ -57,23 +61,17 @@ module Fluent
     def start
       super
       @finished = false
-      @loop = Coolio::Loop.new
-      timer = TimeoutTimer.new(1, method(:on_timer))
-      @loop.attach(timer)
-      @thread = Thread.new(@loop, &:run)
+      timer_execute(:filter_concat_timer, 1, &method(:on_timer))
     end
 
     def shutdown
       super
       @finished = true
-      @loop.watchers.each(&:detach)
-      @loop.stop
-      @thread.join
       flush_remaining_buffer
     end
 
     def filter_stream(tag, es)
-      new_es = MultiEventStream.new
+      new_es = Fluent::MultiEventStream.new
       es.each do |time, record|
         begin
           flushed_es = process(tag, time, record)
@@ -99,7 +97,7 @@ module Fluent
     end
 
     def process(tag, time, record)
-      new_es = MultiEventStream.new
+      new_es = Fluent::MultiEventStream.new
       if @stream_identity_key
         stream_identity = "#{tag}:#{record[@stream_identity_key]}"
       else
@@ -210,21 +208,10 @@ module Fluent
 
     def handle_timeout_error(tag, time, record, message)
       if @timeout_label
-        label = Engine.root_agent.find_label(@timeout_label)
+        label = Fluent::Engine.root_agent.find_label(@timeout_label)
         label.event_router.emit(tag, time, record)
       else
         router.emit_error_event(tag, time, record, TimeoutError.new(message))
-      end
-    end
-
-    class TimeoutTimer < Coolio::TimerWatcher
-      def initialize(interval, callback)
-        super(interval, true)
-        @callback = callback
-      end
-
-      def on_timer
-        @callback.call
       end
     end
   end
