@@ -4,7 +4,7 @@ module Fluent::Plugin
   class ConcatFilter < Filter
     Fluent::Plugin.register_filter("concat", self)
 
-    helpers :timer
+    helpers :timer, :event_emitter
 
     desc "The key for part of multiline log"
     config_param :key, :string, required: true
@@ -65,9 +65,9 @@ module Fluent::Plugin
     end
 
     def shutdown
-      super
       @finished = true
       flush_remaining_buffer
+      super
     end
 
     def filter_stream(tag, es)
@@ -212,8 +212,8 @@ module Fluent::Plugin
 
     def handle_timeout_error(tag, time, record, message)
       if @timeout_label
-        label = Fluent::Engine.root_agent.find_label(@timeout_label)
-        label.event_router.emit(tag, time, record)
+        event_router = event_emitter_router(@timeout_label)
+        event_router.emit(tag, time, record)
       else
         router.emit_error_event(tag, time, record, TimeoutError.new(message))
       end
