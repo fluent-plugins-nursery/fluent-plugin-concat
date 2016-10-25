@@ -1,6 +1,6 @@
 # fluent-plugin-concat
 
-[![Build Status](https://travis-ci.org/okkez/fluent-plugin-concat.svg?branch=master)](https://travis-ci.org/okkez/fluent-plugin-concat)
+[![Build Status](https://travis-ci.org/fluent-plugins-nursery/fluent-plugin-concat.svg?branch=master)](https://travis-ci.org/fluent-plugins-nursery/fluent-plugin-concat)
 
 Fluentd Filter plugin to concatenate multiline log separated in multiple events.
 
