@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = "Fluentd Filter plugin to concat multiple event messages"
   spec.description   = "Fluentd Filter plugin to concat multiple event messages"
-  spec.homepage      = "https://github.com/okkez/fluent-plugin-concat"
+  spec.homepage      = "https://github.com/fluent-plugins-nursery/fluent-plugin-concat"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0").reject {|f| f.match(%r{^(test|spec|features)/}) }
