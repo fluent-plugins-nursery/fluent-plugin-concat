@@ -7,7 +7,7 @@ module Fluent::Plugin
     helpers :timer, :event_emitter
 
     desc "The key for part of multiline log"
-    config_param :key, :string, required: true
+    config_param :key, :string
     desc "The separator of lines"
     config_param :separator, :string, default: "\n"
     desc "The number of lines"
