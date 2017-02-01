@@ -1,5 +1,9 @@
 # ChangeLog
 
+## v2.0.0
+
+* Use Fluentd v0.14 API and drop Fluentd v0.12 or earlier support
+
 ## v0.6.2
 
 ### Fixes
