@@ -4,6 +4,13 @@
 
 Fluentd Filter plugin to concatenate multiline log separated in multiple events.
 
+## Requirements
+
+| fluent-plugin-concat | fluentd    | ruby   |
+|----------------------+------------+--------|
+| >= 2.0.0            | >= v0.14.0 | >= 2.1 |
+| < 2.0.0             | >= v0.12.0 | >= 1.9 |
+
 ## Installation
 
 Add this line to your application's Gemfile:
