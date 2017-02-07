@@ -98,6 +98,29 @@ You can handle timeout events and remaining buffers on shutdown this plugin.
 </label>
 ```
 
+Handle timeout error same as normal logs.
+
+```aconf
+<filter **>
+  @type concat
+  key "message"
+  multiline_start_regexp "/^Start/"
+  flush_interval 5
+  timeout_label "@NORMAL"
+</filter>
+
+<match **>
+  @type relabel
+  @label @NORMAL
+</match>
+
+<label @NORMAL>
+  <match **>
+    @type stdout
+  </match>
+</label>
+```
+
 ## Contributing
 
 1. Fork it
