@@ -98,7 +98,7 @@ You can handle timeout events and remaining buffers on shutdown this plugin.
 </label>
 ```
 
-Handle timeout error same as normal logs.
+Handle timeout log lines the same as normal logs.
 
 ```aconf
 <filter **>
