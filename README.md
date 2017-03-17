@@ -103,10 +103,10 @@ Handle timeout log lines the same as normal logs.
 ```aconf
 <filter **>
   @type concat
-  key "message"
-  multiline_start_regexp "/^Start/"
+  key message
+  multiline_start_regexp /^Start/
   flush_interval 5
-  timeout_label "@NORMAL"
+  timeout_label @NORMAL
 </filter>
 
 <match **>
