@@ -52,6 +52,10 @@ This is exclusive with `n_lines.`
 
 The regexp to match ending of multiline.
 
+**continuous\_line_\_regexp**
+
+The regexp to match continuous lines.
+
 **stream\_identity\_key**
 
 The key to determine which stream an event belongs to.
