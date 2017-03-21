@@ -16,6 +16,8 @@ module Fluent::Plugin
     config_param :multiline_start_regexp, :string, default: nil
     desc "The regexp to match ending of multiline"
     config_param :multiline_end_regexp, :string, default: nil
+    desc "The regexp to match continuous lines"
+    config_param :continuous_line_regexp, :string, default: nil
     desc "The key to determine which stream an event belongs to"
     config_param :stream_identity_key, :string, default: nil
     desc "The interval between data flushes, 0 means disable timeout"
@@ -54,6 +56,9 @@ module Fluent::Plugin
         @multiline_start_regexp = Regexp.compile(@multiline_start_regexp[1..-2])
         if @multiline_end_regexp
           @multiline_end_regexp = Regexp.compile(@multiline_end_regexp[1..-2])
+        end
+        if @continuous_line_regexp
+          @continuous_line_regexp = Regexp.compile(@continuous_line_regexp[1..-2])
         end
       end
     end
@@ -159,8 +164,15 @@ module Fluent::Plugin
           new_es.add(time, record)
           return new_es
         else
-          # Continuation of the previous line
-          @buffer[stream_identity] << [tag, time, record]
+          if continuous_line?(record[@key])
+            # Continuation of the previous line
+            @buffer[stream_identity] << [tag, time, record]
+          else
+            new_time, new_record = flush_buffer(stream_identity)
+            time = new_time if @use_first_timestamp
+            new_es.add(time, new_record)
+            new_es.add(time, record)
+          end
         end
       end
       new_es
@@ -172,6 +184,14 @@ module Fluent::Plugin
 
     def lastline?(text)
       @multiline_end_regexp && !!@multiline_end_regexp.match(text)
+    end
+
+    def continuous_line?(text)
+      if @continuous_line_regexp
+        !!@continuous_line_regexp.match(text)
+      else
+        true
+      end
     end
 
     def flush_buffer(stream_identity, new_element = nil)
