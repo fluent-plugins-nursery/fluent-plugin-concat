@@ -1,6 +1,14 @@
 sudo: false
 language: ruby
 
+notifications:
+  webhooks:
+    urls:
+      secure: kj623yOA6143j1AapTRuPFPslCTvKOyFBDX82cvo7OFjjX9lwnzLDPvf6V/GZpTbouZFEiRhbBWkk+KWFBChf7wQ7I4iJ7uSuJdSo4uWIrdnUiAnbQ5uJb6kSD7xVo1BTl/YFfnt52OM48yy6CgmXW+dRbUs6f+FcjhzCeXqJ+ptGkknruDnjCgW5g6nRfGMbfxaxdGzM9+5oojUFJtaV9wYrQE5sLdjVrFiEN04iUQtERTCyk+n1E71RPKJtfDcP7HOxgc3AMcIjGxbuppZ6YxFmyeBproLKajfPT1RBh6k/KJNTJPehZhC1TxYMz7AsquBNlLKYW20jFiqYoBPGU2LHEwvmARkJWM1UFhpBBESPSOPDiKx9t1exWyo17g8ouD3ito+KXiHOMxwAakeLt3NlMNVmJ9aqAs3Z6BJYsLayR/kwjWdra4G2aUWWJ+CBUQ2EWhKJ6XsWenixi7QIFvph4RqI3QAwgzayghuJ0Oj0FGnYhv93c6ZmJA2F3CQ3LkQpAsY4eY2em5qGwyVBGNVgiSqfo1UYQqMq0L+1FaYZHO9DH/6nCM6u7qzl9HdNl73qe2BBZwOkVkgqq7IhiuaUw/b1jDrgRBgo/l258XSt6u60q5S0cYt4FgFzuLZnVqX+NzxzSE6Fc8dqKCpcn7twzH+erERW5Pl4wRQJVs=
+    on_success: change
+    on_failure: always
+    on_start: never
+
 rvm:
   - 2.1.9
   - 2.2.5
