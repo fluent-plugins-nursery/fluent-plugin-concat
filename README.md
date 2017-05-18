@@ -52,7 +52,7 @@ This is exclusive with `n_lines.`
 
 The regexp to match ending of multiline.
 
-**continuous\_line_\_regexp**
+**continuous\_line\_regexp**
 
 The regexp to match continuous lines.
 
