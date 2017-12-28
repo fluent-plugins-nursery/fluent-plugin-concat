@@ -10,10 +10,10 @@ notifications:
     on_start: never
 
 rvm:
-  - 2.1.9
-  - 2.2.5
-  - 2.3.3
-  - 2.4.0
+  - 2.1
+  - 2.2
+  - 2.3
+  - 2.4.3
 
 gemfile:
   - Gemfile
