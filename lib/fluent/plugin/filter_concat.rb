@@ -40,20 +40,22 @@ module Fluent::Plugin
     def configure(conf)
       super
 
-      if @n_lines && @multiline_start_regexp
-        raise Fluent::ConfigError, "n_lines and multiline_start_regexp are exclusive"
+      if @n_lines && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive"
       end
-      if @n_lines.nil? && @multiline_start_regexp.nil?
-        raise Fluent::ConfigError, "Either n_lines or multiline_start_regexp is required"
+      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil?
+        raise Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required"
       end
 
       @mode = nil
       case
       when @n_lines
         @mode = :line
-      when @multiline_start_regexp
+      when @multiline_start_regexp || @multiline_end_regexp
         @mode = :regexp
-        @multiline_start_regexp = Regexp.compile(@multiline_start_regexp[1..-2])
+        if @multiline_start_regexp
+          @multiline_start_regexp = Regexp.compile(@multiline_start_regexp[1..-2])
+        end
         if @multiline_end_regexp
           @multiline_end_regexp = Regexp.compile(@multiline_end_regexp[1..-2])
         end
@@ -161,8 +163,12 @@ module Fluent::Plugin
         return new_es
       else
         if @buffer[stream_identity].empty?
-          new_es.add(time, record)
-          return new_es
+          if !@multiline_start_regexp
+            @buffer[stream_identity] << [tag, time, record]
+          else
+            new_es.add(time, record)
+            return new_es
+          end
         else
           if continuous_line?(record[@key])
             # Continuation of the previous line

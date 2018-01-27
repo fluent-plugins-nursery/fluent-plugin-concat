@@ -49,7 +49,7 @@ class FilterConcatTest < Test::Unit::TestCase
     end
 
     def test_exclusive
-      assert_raise(Fluent::ConfigError, "n_lines and multiline_start_regexp are exclusive") do
+      assert_raise(Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive") do
         create_driver(<<-CONFIG)
           key message
           n_lines 10
@@ -59,7 +59,7 @@ class FilterConcatTest < Test::Unit::TestCase
     end
 
     def test_either
-      assert_raise(Fluent::ConfigError, "Either n_lines or multiline_start_regexp is required") do
+      assert_raise(Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required") do
         create_driver(<<-CONFIG)
           key message
         CONFIG
@@ -75,6 +75,14 @@ class FilterConcatTest < Test::Unit::TestCase
       d = create_driver(<<-CONFIG)
         key message
         multiline_start_regexp /^start/
+      CONFIG
+      assert_equal(:regexp, d.instance.instance_variable_get(:@mode))
+    end
+
+    def test_multiline_end_regexp
+      d = create_driver(<<-CONFIG)
+        key message
+        multiline_end_regexp /^end/
       CONFIG
       assert_equal(:regexp, d.instance.instance_variable_get(:@mode))
     end
@@ -313,6 +321,29 @@ class FilterConcatTest < Test::Unit::TestCase
       expected = [
         { "container_id" => "1", "message" => "start message end" },
         { "container_id" => "1", "message" => "start\n message1\n message2\nend" },
+      ]
+      filtered = filter(config, messages)
+      assert_equal(expected, filtered)
+    end
+
+    def test_multiline_end_only_regexp
+      config = <<-CONFIG
+        key message
+        stream_identity_key container_id
+        multiline_end_regexp /\\n$/
+      CONFIG
+      messages = [
+          { "host" => "example.com", "message" => "{\"key1\": \"value1\",\"key2\": \"value2\"}\n" },
+          { "host" => "example.com", "message" => "{\"key3\": \"value3\",\"key4\": \"value4\"," },
+          { "host" => "example.com", "message" => "\"key5\": \"value5\",\"key6\": \"value6\"," },
+          { "host" => "example.com", "message" => "\"key7\": \"value7\",\"key8\": \"value8\"}\n" },
+          { "host" => "example.com", "message" => "{\"key9\": \"value9\",\"key0\": \"value0\"," },
+          { "host" => "example.com", "message" => "\"key1\": \"value1\",\"key2\": \"value2\"}\n" },
+      ]
+      expected = [
+          { "host" => "example.com","message" => "{\"key1\": \"value1\",\"key2\": \"value2\"}\n" },
+          { "host" => "example.com","message" => "{\"key3\": \"value3\",\"key4\": \"value4\",\n\"key5\": \"value5\",\"key6\": \"value6\",\n\"key7\": \"value7\",\"key8\": \"value8\"}\n" },
+          { "host" => "example.com","message" => "{\"key9\": \"value9\",\"key0\": \"value0\",\n\"key1\": \"value1\",\"key2\": \"value2\"}\n" },
       ]
       filtered = filter(config, messages)
       assert_equal(expected, filtered)
