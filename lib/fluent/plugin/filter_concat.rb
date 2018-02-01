@@ -40,8 +40,8 @@ module Fluent::Plugin
     def configure(conf)
       super
 
-      if @n_lines && (@multiline_start_regexp || @multiline_end_regexp)
-        raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive"
+      if @n_lines && (@multiline_start_regexp || @multiline_end_regexp || @continuous_line_regexp)
+        raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp/continuous_line_regexp are exclusive"
       end
       if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil?
         raise Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required"
