@@ -51,10 +51,12 @@ This is exclusive with `n_lines.`
 **multiline\_end\_regexp**
 
 The regexp to match ending of multiline.
+This is exclusive with `n_lines.`
 
 **continuous\_line\_regexp**
 
 The regexp to match continuous lines.
+This is exclusive with `n_lines.`
 
 **stream\_identity\_key**
 
@@ -123,6 +125,16 @@ Handle timeout log lines the same as normal logs.
     @type stdout
   </match>
 </label>
+```
+
+Handle single line JSON from Docker containers.
+
+```aconf
+<filter **>
+  @type concat
+  key message
+  multiline_end_regexp /\\n$/
+</filter>
 ```
 
 ## Contributing
