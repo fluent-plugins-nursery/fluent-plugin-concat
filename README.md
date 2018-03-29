@@ -133,7 +133,7 @@ Handle single line JSON from Docker containers.
 <filter **>
   @type concat
   key message
-  multiline_end_regexp /\\n$/
+  multiline_end_regexp /\n$/
 </filter>
 ```
 
