@@ -26,6 +26,8 @@ module Fluent::Plugin
     config_param :timeout_label, :string, default: nil
     desc "Use timestamp of first record when buffer is flushed"
     config_param :use_first_timestamp, :bool, default: false
+    desc "The field name that is the reference to concatenate records"
+    config_param :partial_key, :string, default: nil
 
     class TimeoutError < StandardError
     end
@@ -54,6 +56,8 @@ module Fluent::Plugin
       case
       when @n_lines
         @mode = :line
+      when @partial_key
+          @mode = :partial
       when @multiline_start_regexp || @multiline_end_regexp
         @mode = :regexp
         if @multiline_start_regexp
@@ -128,6 +132,8 @@ module Fluent::Plugin
       case @mode
       when :line
         process_line(stream_identity, tag, time, record)
+      when :partial
+        process_partial(stream_identity, tag, time, record)
       when :regexp
         process_regexp(stream_identity, tag, time, record)
       end
@@ -137,6 +143,17 @@ module Fluent::Plugin
       new_es = Fluent::MultiEventStream.new
       @buffer[stream_identity] << [tag, time, record]
       if @buffer[stream_identity].size >= @n_lines
+        new_time, new_record = flush_buffer(stream_identity)
+        time = new_time if @use_first_timestamp
+        new_es.add(time, new_record)
+      end
+      new_es
+    end
+
+    def process_partial(stream_identity, tag, time, record)
+      new_es = Fluent::MultiEventStream.new
+      @buffer[stream_identity] << [tag, time, record]
+      unless record[@partial_key]
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
         new_es.add(time, new_record)
