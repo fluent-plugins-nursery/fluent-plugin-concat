@@ -84,7 +84,7 @@ module Fluent::Plugin
           new_es.add(time, record)
           next
         end
-        if record[@key].nil?
+        unless record.key?(@key)
           new_es.add(time, record)
           next
         end
