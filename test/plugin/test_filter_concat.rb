@@ -439,6 +439,65 @@ class FilterConcatTest < Test::Unit::TestCase
       ]
       assert_equal(expected, filtered)
     end
+
+    def test_missing_keys
+      config = <<-CONFIG
+        key message
+        multiline_start_regexp /^start/
+        continuous_line_regexp /^ /
+        flush_interval 1s
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "1", "message" => "  message 1" },
+        { "container_id" => "1", "message" => "  message 2" },
+        { "container_id" => "1", "message" => "single line message 1" },
+        { "container_id" => "2", "nomessage" => "This is not message" },
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "1", "message" => "  message 3" },
+        { "container_id" => "1", "message" => "  message 4" },
+        { "container_id" => "1", "message" => "single line message 2" },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n  message 1\n  message 2" },
+        { "container_id" => "1", "message" => "single line message 1" },
+        { "container_id" => "2", "nomessage" => "This is not message" },
+        { "container_id" => "1", "message" => "start\n  message 3\n  message 4" },
+        { "container_id" => "1", "message" => "single line message 2" },
+      ]
+      assert_equal(expected, filtered)
+    end
+
+    def test_value_is_nil
+      config = <<-CONFIG
+        key message
+        stream_identity_key container_id
+        multiline_start_regexp /^start/
+        continuous_line_regexp /^ /
+        flush_interval 1s
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "1", "message" => "  message 1" },
+        { "container_id" => "1", "message" => "  message 2" },
+        { "container_id" => "1", "message" => nil },
+        { "container_id" => "1", "message" => "single line message 1" },
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "1", "message" => "  message 3" },
+        { "container_id" => "1", "message" => "  message 4" },
+        { "container_id" => "1", "message" => "single line message 2" },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n  message 1\n  message 2" },
+        { "container_id" => "1", "message" => nil },
+        { "container_id" => "1", "message" => "single line message 1" },
+        { "container_id" => "1", "message" => "start\n  message 3\n  message 4" },
+        { "container_id" => "1", "message" => "single line message 2" },
+      ]
+      assert_equal(expected, filtered)
+    end
   end
 
   class UseFirstTimestamp < self
