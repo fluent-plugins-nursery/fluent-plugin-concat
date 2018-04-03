@@ -84,6 +84,10 @@ module Fluent::Plugin
           new_es.add(time, record)
           next
         end
+        if record[@key].nil?
+          new_es.add(time, record)
+          next
+        end
         begin
           flushed_es = process(tag, time, record)
           unless flushed_es.empty?

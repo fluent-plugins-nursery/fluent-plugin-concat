@@ -132,6 +132,25 @@ class FilterConcatTest < Test::Unit::TestCase
       filtered = filter(CONFIG, messages)
       assert_equal(expected, filtered)
     end
+    
+    def test_missing_keys
+      messages = [
+        { "host" => "example.com", "message" => "message 1" },
+        { "host" => "example.com", "message" => "message 2" },
+        { "host" => "example.com", "message" => "message 3" },
+        { "host" => "example.com", "message" => "message 4" },
+        { "host" => "example.com", "message" => "message 5" },
+        { "host" => "example.com", "message" => "message 6" },
+        { "host" => "example.com", "somekey" => "message 7" },
+      ]
+      expected = [
+        { "host" => "example.com", "message" => "message 1\nmessage 2\nmessage 3" },
+        { "host" => "example.com", "message" => "message 4\nmessage 5\nmessage 6" },
+        { "host" => "example.com", "somekey" => "message 7" },
+      ]
+      filtered = filter(CONFIG, messages)
+      assert_equal(expected, filtered)
+    end
 
     def test_stream_identity
       messages = [
