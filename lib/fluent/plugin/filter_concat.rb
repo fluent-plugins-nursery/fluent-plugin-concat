@@ -109,6 +109,8 @@ module Fluent::Plugin
       return if @flush_interval <= 0
       return if @finished
       flush_timeout_buffer
+    rescue => e
+      log.error "failed to flush timeout buffer", error: e
     end
 
     def process(tag, time, record)
