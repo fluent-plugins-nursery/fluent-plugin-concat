@@ -578,4 +578,44 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
   end
+
+  sub_test_case "raise exception in on_timer" do
+    # See also https://github.com/fluent/fluentd/issues/1946
+    test "failed to flush timeout buffer" do
+      config = <<-CONFIG
+        key message
+        flush_interval 1s
+        multiline_start_regexp /^start/
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "1", "message" => "  message 1" },
+        { "container_id" => "1", "message" => "  message 2" },
+        { "container_id" => "1", "message" => "start" },
+        { "container_id" => "1", "message" => "  message 3" },
+        { "container_id" => "1", "message" => "  message 4" },
+        { "container_id" => "1", "message" => "start" },
+      ]
+      logs = nil
+      filtered = filter(config, messages, wait: 3) do |d|
+        mock(d.instance).flush_timeout_buffer.times(3) { raise StandardError, "timeout" }
+        logs = d.logs
+      end
+      expected = [
+        { "container_id" => "1", "message" => "start\n  message 1\n  message 2" },
+        { "container_id" => "1", "message" => "start\n  message 3\n  message 4" }
+      ]
+      expected_logs = [
+        "[error]: failed to flush timeout buffer error_class=StandardError error=\"timeout\"",
+        "[error]: failed to flush timeout buffer error_class=StandardError error=\"timeout\"",
+        "[error]: failed to flush timeout buffer error_class=StandardError error=\"timeout\"",
+        "[info]: Flush remaining buffer: test:default"
+      ]
+      log_messages = logs.map do |line|
+        line.chomp.gsub(/.+? (\[(?:error|info)\].+)/) {|m| $1 }
+      end
+      assert_equal(expected_logs, log_messages)
+      assert_equal(expected, filtered)
+    end
+  end
 end
