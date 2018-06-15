@@ -34,7 +34,10 @@ module Fluent::Plugin
       super
 
       @buffer = Hash.new {|h, k| h[k] = [] }
-      @timeout_map = Hash.new {|h, k| h[k] = Fluent::Engine.now }
+      @timeout_map_mutex = Thread::Mutex.new
+      @timeout_map_mutex.synchronize do
+        @timeout_map = Hash.new {|h, k| h[k] = Fluent::Engine.now }
+      end
     end
 
     def configure(conf)
@@ -119,7 +122,9 @@ module Fluent::Plugin
       else
         stream_identity = "#{tag}:default"
       end
-      @timeout_map[stream_identity] = Fluent::Engine.now
+      @timeout_map_mutex.synchronize do
+        @timeout_map[stream_identity] = Fluent::Engine.now
+      end
       case @mode
       when :line
         process_line(stream_identity, tag, time, record)
@@ -220,18 +225,20 @@ module Fluent::Plugin
     def flush_timeout_buffer
       now = Fluent::Engine.now
       timeout_stream_identities = []
-      @timeout_map.each do |stream_identity, previous_timestamp|
-        next if @flush_interval > (now - previous_timestamp)
-        next if @buffer[stream_identity].empty?
-        time, flushed_record = flush_buffer(stream_identity)
-        timeout_stream_identities << stream_identity
-        tag = stream_identity.split(":").first
-        message = "Timeout flush: #{stream_identity}"
-        handle_timeout_error(tag, @use_first_timestamp ? time : now, flushed_record, message)
-        log.info(message)
-      end
-      @timeout_map.reject! do |stream_identity, _|
-        timeout_stream_identities.include?(stream_identity)
+      @timeout_map_mutex.synchronize do
+        @timeout_map.each do |stream_identity, previous_timestamp|
+          next if @flush_interval > (now - previous_timestamp)
+          next if @buffer[stream_identity].empty?
+          time, flushed_record = flush_buffer(stream_identity)
+          timeout_stream_identities << stream_identity
+          tag = stream_identity.split(":").first
+          message = "Timeout flush: #{stream_identity}"
+          handle_timeout_error(tag, @use_first_timestamp ? time : now, flushed_record, message)
+          log.info(message)
+        end
+        @timeout_map.reject! do |stream_identity, _|
+          timeout_stream_identities.include?(stream_identity)
+        end
       end
     end
 
