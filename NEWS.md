@@ -1,5 +1,29 @@
 # ChangeLog
 
+## v2.2.3
+
+### Fixes
+
+* Fix a bug that `@timeout_map` will be updated while traversing it. See #49
+
+## v.2.2.2
+
+### Fixes
+
+* #48
+
+## v2.2.1
+
+### Fixes
+
+* #45
+
+## v2.2.0
+
+### Fixes
+
+* #43
+
 ## v2.0.0
 
 * Use Fluentd v0.14 API and drop Fluentd v0.12 or earlier support
