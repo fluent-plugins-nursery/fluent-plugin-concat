@@ -8,6 +8,8 @@ module Fluent::Plugin
 
     desc "The key for part of multiline log"
     config_param :key, :string
+    desc "The key on which to do regex searches"
+    config_param :regexp_key, :string, default: nil
     desc "The separator of lines"
     config_param :separator, :string, default: "\n"
     desc "The number of lines"
@@ -42,6 +44,10 @@ module Fluent::Plugin
 
     def configure(conf)
       super
+
+      if @regexp_key.nil?
+        @regexp_key = @key
+      end
 
       if @n_lines && (@multiline_start_regexp || @multiline_end_regexp || @continuous_line_regexp)
         raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp/continuous_line_regexp are exclusive"
@@ -87,7 +93,7 @@ module Fluent::Plugin
           new_es.add(time, record)
           next
         end
-        unless record.key?(@key)
+        unless record.key?(@key) and record.key?(@regexp_key)
           new_es.add(time, record)
           next
         end
@@ -147,10 +153,10 @@ module Fluent::Plugin
     def process_regexp(stream_identity, tag, time, record)
       new_es = Fluent::MultiEventStream.new
       case
-      when firstline?(record[@key])
+      when firstline?(record[@regexp_key])
         if @buffer[stream_identity].empty?
           @buffer[stream_identity] << [tag, time, record]
-          if lastline?(record[@key])
+          if lastline?(record[@regexp_key])
             new_time, new_record = flush_buffer(stream_identity)
             time = new_time if @use_first_timestamp
             new_es.add(time, new_record)
@@ -159,14 +165,14 @@ module Fluent::Plugin
           new_time, new_record = flush_buffer(stream_identity, [tag, time, record])
           time = new_time if @use_first_timestamp
           new_es.add(time, new_record)
-          if lastline?(record[@key])
+          if lastline?(record[@regexp_key])
             new_time, new_record = flush_buffer(stream_identity)
             time = new_time if @use_first_timestamp
             new_es.add(time, new_record)
           end
           return new_es
         end
-      when lastline?(record[@key])
+      when lastline?(record[@regexp_key])
         @buffer[stream_identity] << [tag, time, record]
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
@@ -181,7 +187,7 @@ module Fluent::Plugin
             return new_es
           end
         else
-          if continuous_line?(record[@key])
+          if continuous_line?(record[@regexp_key])
             # Continuation of the previous line
             @buffer[stream_identity] << [tag, time, record]
           else

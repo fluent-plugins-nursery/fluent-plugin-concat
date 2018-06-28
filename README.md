@@ -33,6 +33,10 @@ Or install it yourself as:
 
 The key for part of multiline log.
 
+**regexp_key**
+
+The key on which to do regex searches. Defaults to `key`.
+
 **separator**
 
 The separator of lines.
@@ -134,6 +138,27 @@ Handle single line JSON from Docker containers.
   @type concat
   key message
   multiline_end_regexp /\n$/
+</filter>
+```
+
+Handle single split logs from Kubernetes Containerd containers.
+
+```aconf
+<source>
+  @type tail
+  /var/log/containers/*.log
+  <parse>
+    format regexp
+    time_format %Y-%m-%dT%H:%M:%S.%N%:z
+    expression /^(?<time>.+)\b(?<stream>stdout|stderr)\b(?<criprefix>P|F)\b(?<message>.*)$/
+  </parse>
+</source>
+
+<filter **>
+  @type concat
+  key message
+  search_key criprefix
+  multiline_end_regexp /^F/
 </filter>
 ```
 

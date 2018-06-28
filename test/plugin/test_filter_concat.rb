@@ -48,6 +48,25 @@ class FilterConcatTest < Test::Unit::TestCase
       end
     end
 
+    def test_no_regexp_key
+      d = create_driver(<<-CONFIG)
+        key message 
+        multiline_start_regexp /^start/
+      CONFIG
+      assert_equal("message", d.instance.instance_variable_get(:@key))
+      assert_equal("message", d.instance.instance_variable_get(:@regexp_key))
+    end
+
+    def test_regexp_key
+      d = create_driver(<<-CONFIG)
+        key message 
+        regexp_key prefix
+        multiline_start_regexp /^start/
+      CONFIG
+      assert_equal("message", d.instance.instance_variable_get(:@key))
+      assert_equal("prefix", d.instance.instance_variable_get(:@regexp_key))
+    end
+
     def test_exclusive
       assert_raise(Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive") do
         create_driver(<<-CONFIG)
@@ -229,6 +248,30 @@ class FilterConcatTest < Test::Unit::TestCase
       expected = [
         { "host" => "example.com", "message" => "start\n  message 1\n  message 2" },
         { "host" => "example.com", "message" => "start\n  message 3\n  message 4" },
+      ]
+      filtered = filter(config, messages)
+      assert_equal(expected, filtered)
+    end
+
+    def test_regexp_key
+      config = <<-CONFIG
+        key message
+        regexp_key split
+        multiline_end_regexp /^full$/
+      CONFIG
+      messages = [
+        { "host" => "example.com", "split" => "partial", "message" => "message 1" },
+        { "host" => "example.com", "split" => "full", "message" => "message 2" },
+        { "host" => "example.com", "message" => "message 3" },
+        { "host" => "example.com", "split" => "full", "message" => "message 4" },
+        { "host" => "example.com", "split" => "partial", "message" => "message 5" },
+        { "host" => "example.com", "split" => "full", "message" => "message 6" },
+      ]
+      expected = [
+        { "host" => "example.com", "split" => "partial", "message" => "message 1\nmessage 2" },
+        { "host" => "example.com", "message" => "message 3" },
+        { "host" => "example.com", "split" => "full", "message" => "message 4" },
+        { "host" => "example.com", "split" => "partial", "message" => "message 5\nmessage 6" },
       ]
       filtered = filter(config, messages)
       assert_equal(expected, filtered)
