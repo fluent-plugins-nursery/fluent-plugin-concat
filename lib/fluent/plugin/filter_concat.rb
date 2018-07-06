@@ -46,18 +46,21 @@ module Fluent::Plugin
     def configure(conf)
       super
 
-      if @n_lines && (@multiline_start_regexp || @multiline_end_regexp || @continuous_line_regexp)
-        raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp/continuous_line_regexp are exclusive"
-      end
-      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil?
-        raise Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required"
+      multiline_configs = [
+        @n_lines,
+        (@multiline_start_regexp || @multiline_end_regexp || @continuous_line_regexp),
+        @partial_message_key
+      ]
+      if multiline_configs.uniq.size > 1
+        message = "n_lines, multiline_start_regexp/multiline_end_regexp/continuous_line_regexp, and partial_message_key are exclusive"
+        raise Fluent::ConfigError, message
       end
 
       @mode = nil
       case
       when @n_lines
         @mode = :line
-      when @multiline_start_regexp || @multiline_end_regexp
+      when @multiline_start_regexp || @multiline_end_regexp || @continuous_line_regexp
         @mode = :regexp
         if @multiline_start_regexp
           @multiline_start_regexp = Regexp.compile(@multiline_start_regexp[1..-2])
@@ -68,6 +71,14 @@ module Fluent::Plugin
         if @continuous_line_regexp
           @continuous_line_regexp = Regexp.compile(@continuous_line_regexp[1..-2])
         end
+      when @partial_message_key
+        @mode = :partial_message
+        unless @partial_message_value
+          raise Fluent::ConfigError, "partial_message_value is required when partial_message_key is specified"
+        end
+      else
+        message = "Either n_lines, multiline_start_regexp, multiline_end_regexp, or partial_message_key is required"
+        raise Fluent::ConfigError, message
       end
     end
 
