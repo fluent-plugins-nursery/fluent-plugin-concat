@@ -27,6 +27,9 @@ module Fluent::Plugin
     desc "Use timestamp of first record when buffer is flushed"
     config_param :use_first_timestamp, :bool, default: false
 
+    config_param :partial_message_key, :string, default: nil
+    config_param :partial_message_value, :string, default: nil
+
     class TimeoutError < StandardError
     end
 
