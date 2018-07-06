@@ -144,6 +144,8 @@ module Fluent::Plugin
         process_line(stream_identity, tag, time, record)
       when :regexp
         process_regexp(stream_identity, tag, time, record)
+      when :partial_message
+        process_partial_message(stream_identity, tag, time, record)
       end
     end
 
@@ -207,6 +209,10 @@ module Fluent::Plugin
         end
       end
       new_es
+    end
+
+    def process_partial_message(stream_identity, tag, time, record)
+      new_es = Fluent::MultiEventStream.new
     end
 
     def firstline?(text)
