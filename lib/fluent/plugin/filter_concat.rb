@@ -30,6 +30,8 @@ module Fluent::Plugin
     config_param :partial_key, :string, default: nil
     desc "The value stored in the field specified by partial_key that represent partial log"
     config_param :partial_value, :string, default: nil
+    desc "If true, keep partial_key in concatenated records"
+    config_param :keep_partial_key, :bool, default: false
 
     class TimeoutError < StandardError
     end
@@ -111,7 +113,9 @@ module Fluent::Plugin
           unless flushed_es.empty?
             flushed_es.each do |_time, new_record|
               time = _time if @use_first_timestamp
-              new_es.add(time, record.merge(new_record))
+              merged_record = record.merge(new_record)
+              merged_record.delete(@partial_key) unless @keep_partial_key
+              new_es.add(time, merged_record)
             end
           end
         rescue => e
@@ -167,6 +171,7 @@ module Fluent::Plugin
       unless @partial_value == record[@partial_key]
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
+        new_record.delete(@partial_key)
         new_es.add(time, new_record)
       end
       new_es
