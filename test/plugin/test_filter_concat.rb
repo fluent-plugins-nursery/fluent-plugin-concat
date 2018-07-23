@@ -66,6 +66,45 @@ class FilterConcatTest < Test::Unit::TestCase
       end
     end
 
+    test "partial_key with n_lines" do
+      assert_raise(Fluent::ConfigError.new("partial_key and n_lines are exclusive")) do
+        create_driver(<<-CONFIG)
+          key message
+          n_lines 10
+          partial_key partial_message
+        CONFIG
+      end
+    end
+
+    test "partial_key with multiline_start_regexp" do
+      assert_raise(Fluent::ConfigError.new("partial_key and multiline_start_regexp/multiline_end_regexp are exclusive")) do
+        create_driver(<<-CONFIG)
+          key message
+          multiline_start_regexp /xxx/
+          partial_key partial_message
+        CONFIG
+      end
+    end
+
+    test "partial_key with multiline_end_regexp" do
+      assert_raise(Fluent::ConfigError.new("partial_key and multiline_start_regexp/multiline_end_regexp are exclusive")) do
+        create_driver(<<-CONFIG)
+          key message
+          multiline_end_regexp /xxx/
+          partial_key partial_message
+        CONFIG
+      end
+    end
+
+    test "partial_key is specified but partial_value is missing" do
+      assert_raise(Fluent::ConfigError.new("partial_value is required when partial_key is specified")) do
+        create_driver(<<-CONFIG)
+          key message
+          partial_key partial_message
+        CONFIG
+      end
+    end
+
     test "n_lines" do
       d = create_driver
       assert_equal(:line, d.instance.instance_variable_get(:@mode))

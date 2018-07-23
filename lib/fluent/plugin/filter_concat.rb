@@ -47,11 +47,17 @@ module Fluent::Plugin
     def configure(conf)
       super
 
-      if @n_lines && (@multiline_start_regexp || @multiline_end_regexp || @continuous_line_regexp)
-        raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp/continuous_line_regexp are exclusive"
+      if @n_lines && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive"
       end
-      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil?
+      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil? && @partial_key.nil?
         raise Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required"
+      end
+      if @partial_key && @n_lines
+        raise Fluent::ConfigError, "partial_key and n_lines are exclusive"
+      end
+      if @partial_key && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "partial_key and multiline_start_regexp/multiline_end_regexp are exclusive"
       end
       if @partial_key && @partial_value.nil?
         raise Fluent::ConfigError, "partial_value is required when partial_key is specified"
