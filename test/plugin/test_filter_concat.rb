@@ -43,13 +43,13 @@ class FilterConcatTest < Test::Unit::TestCase
 
   sub_test_case "config" do
     test "empty" do
-      assert_raise(Fluent::ConfigError, "key parameter is required") do
+      assert_raise(Fluent::ConfigError.new("'key' parameter is required")) do
         create_driver("")
       end
     end
 
     test "exclusive" do
-      assert_raise(Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive") do
+      assert_raise(Fluent::ConfigError.new("n_lines and multiline_start_regexp/multiline_end_regexp are exclusive")) do
         create_driver(<<-CONFIG)
           key message
           n_lines 10
@@ -59,7 +59,7 @@ class FilterConcatTest < Test::Unit::TestCase
     end
 
     test "either" do
-      assert_raise(Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required") do
+      assert_raise(Fluent::ConfigError.new("Either n_lines or multiline_start_regexp or multiline_end_regexp is required")) do
         create_driver(<<-CONFIG)
           key message
         CONFIG
