@@ -41,14 +41,14 @@ class FilterConcatTest < Test::Unit::TestCase
     d.filtered
   end
 
-  class Config < self
-    def test_empty
+  sub_test_case "config" do
+    test "empty" do
       assert_raise(Fluent::ConfigError, "key parameter is required") do
         create_driver("")
       end
     end
 
-    def test_exclusive
+    test "exclusive" do
       assert_raise(Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive") do
         create_driver(<<-CONFIG)
           key message
@@ -58,7 +58,7 @@ class FilterConcatTest < Test::Unit::TestCase
       end
     end
 
-    def test_either
+    test "either" do
       assert_raise(Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required") do
         create_driver(<<-CONFIG)
           key message
@@ -66,12 +66,12 @@ class FilterConcatTest < Test::Unit::TestCase
       end
     end
 
-    def test_n_lines
+    test "n_lines" do
       d = create_driver
       assert_equal(:line, d.instance.instance_variable_get(:@mode))
     end
 
-    def test_multiline_start_regexp
+    test "multiline_start_regexp" do
       d = create_driver(<<-CONFIG)
         key message
         multiline_start_regexp /^start/
@@ -79,7 +79,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(:regexp, d.instance.instance_variable_get(:@mode))
     end
 
-    def test_multiline_end_regexp
+    test "multiline_end_regexp" do
       d = create_driver(<<-CONFIG)
         key message
         multiline_end_regexp /^end/
@@ -88,8 +88,8 @@ class FilterConcatTest < Test::Unit::TestCase
     end
   end
 
-  class Lines < self
-    def test_filter
+  sub_test_case "lines" do
+    test "filter" do
       messages = [
         { "host" => "example.com", "message" => "message 1" },
         { "host" => "example.com", "message" => "message 2" },
@@ -102,7 +102,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_filter_excess
+    test "filter excess" do
       messages = [
         { "host" => "example.com", "message" => "message 1" },
         { "host" => "example.com", "message" => "message 2" },
@@ -116,7 +116,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_filter_2_groups
+    test "filter 2 groups" do
       messages = [
         { "host" => "example.com", "message" => "message 1" },
         { "host" => "example.com", "message" => "message 2" },
@@ -133,7 +133,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
     
-    def test_missing_keys
+    test "missing keys" do
       messages = [
         { "host" => "example.com", "message" => "message 1" },
         { "host" => "example.com", "message" => "message 2" },
@@ -152,7 +152,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_stream_identity
+    test "stream identity" do
       messages = [
         { "container_id" => "1", "message" => "message 1" },
         { "container_id" => "2", "message" => "message 2" },
@@ -169,7 +169,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_timeout
+    test "timeout" do
       messages = [
         { "container_id" => "1", "message" => "message 1" },
         { "container_id" => "1", "message" => "message 2" },
@@ -181,7 +181,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal([], filtered)
     end
 
-    def test_timeout_with_timeout_label
+    test "timeout with timeout_label" do
       messages = [
         { "container_id" => "1", "message" => "message 1" },
         { "container_id" => "1", "message" => "message 2" },
@@ -194,7 +194,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal([], filtered)
     end
 
-    def test_no_timeout
+    test "no timeout" do
       messages = [
         { "container_id" => "1", "message" => "message 1" },
         { "container_id" => "1", "message" => "message 2" },
@@ -211,8 +211,8 @@ class FilterConcatTest < Test::Unit::TestCase
     end
   end
 
-  class Regexp < self
-    def test_filter
+  sub_test_case "regexp" do
+    test "filter" do
       config = <<-CONFIG
         key message
         multiline_start_regexp /^start/
@@ -234,7 +234,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_stream_identity
+    test "stream identity" do
       config = <<-CONFIG
         key message
         stream_identity_key container_id
@@ -265,7 +265,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_multiline_end_regexp
+    test "multiline_end_regexp" do
       config = <<-CONFIG
         key message
         stream_identity_key container_id
@@ -290,7 +290,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_multiline_with_single_line_logs
+    test "multiline with single line logs" do
       config = <<-CONFIG
         key message
         stream_identity_key container_id
@@ -323,7 +323,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_multiline_start_end_regexp
+    test "multiline_start_regexp and multiline_end_regexp" do
       config = <<-CONFIG
         key message
         stream_identity_key container_id
@@ -345,7 +345,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_multiline_end_only_regexp
+    test "multiline_end_regexp only" do
       config = <<-CONFIG
         key message
         stream_identity_key container_id
@@ -369,7 +369,7 @@ class FilterConcatTest < Test::Unit::TestCase
     end
 
     # https://github.com/okkez/fluent-plugin-concat/issues/14
-    def test_multiline_start_end_regexp_github14
+    test "multiline_start_regexp and multiline_end_regexp #14" do
       config = <<-CONFIG
         key message
         stream_identity_key container_id
@@ -395,7 +395,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_timeout
+    test "timeout" do
       config = <<-CONFIG
         key message
         multiline_start_regexp /^start/
@@ -413,7 +413,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal([], filtered)
     end
 
-    def test_continuous_line
+    test "continuous_line_regexp" do
       config = <<-CONFIG
         key message
         multiline_start_regexp /^start/
@@ -440,7 +440,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_missing_keys
+    test "missing keys" do
       config = <<-CONFIG
         key message
         multiline_start_regexp /^start/
@@ -469,7 +469,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_value_is_nil
+    test "value is nil" do
       config = <<-CONFIG
         key message
         stream_identity_key container_id
@@ -500,8 +500,8 @@ class FilterConcatTest < Test::Unit::TestCase
     end
   end
 
-  class UseFirstTimestamp < self
-    def test_filter_true
+  sub_test_case "use first timestamp" do
+    test "use_first_timestamp true" do
       messages = [
         [@time, { "host" => "example.com", "message" => "message 1" }],
         [@time + 1, { "host" => "example.com", "message" => "message 2" }],
@@ -515,7 +515,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_filter_false
+    test "use_first_timestamp false" do
       messages = [
         [@time, { "host" => "example.com", "message" => "message 1" }],
         [@time + 1, { "host" => "example.com", "message" => "message 2" }],
@@ -529,7 +529,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_timeout
+    test "timeout" do
       config = <<-CONFIG
         key message
         multiline_start_regexp /^start/
@@ -554,7 +554,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    def test_disable_timeout
+    test "disable timeout" do
       config = <<-CONFIG
         key message
         multiline_start_regexp /^start/
