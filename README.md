@@ -152,6 +152,51 @@ Handle single line JSON from Docker containers.
 </filter>
 ```
 
+Handle Docker's `partial_message`.
+
+```aconf
+<filter>
+  @type concat
+  key message
+  partial_key partial_message
+  partial_value true
+</filter>
+```
+
+Handle containerd/cri in Kubernetes.
+
+```aconf
+<source>
+  @type tail
+  path /var/log/containers/*.log
+  <parse>
+    @type regexp
+    expression /^(?<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z) (?<output>\w+) (?<partial_flag>[FP]) (?<message>.+)$/
+  </parse>
+  tag k8s
+  @label @CONCAT
+</source>
+
+<label @CONCAT>
+  <filter k8s>
+    @type concat
+    key message
+    partial_key partial_flag
+    partial_value P
+  </filter>
+  <match k8s>
+    @type relabel
+    @label @OUTPUT
+  </match>
+</label>
+
+<label @OUTPUT>
+  <match>
+    @type stdout
+  </match>
+</label>
+```
+
 ## Contributing
 
 1. Fork it
