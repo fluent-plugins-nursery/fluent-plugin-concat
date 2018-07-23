@@ -539,6 +539,82 @@ class FilterConcatTest < Test::Unit::TestCase
     end
   end
 
+  sub_test_case "partial_key" do
+    test "filter with docker style events" do
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 1", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 2", "partial_message" => "true" },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false" },
+        { "container_id" => "1", "message" => "start", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 3", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 4", "partial_message" => "true" },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false" },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1\n message 2\nend" },
+        { "container_id" => "1", "message" => "start\n message 3\n message 4\nend" },
+      ]
+      assert_equal(expected, filtered)
+    end
+
+    test "filter with docker style events keep partial_key" do
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+        keep_partial_key true
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 1", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 2", "partial_message" => "true" },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false" },
+        { "container_id" => "1", "message" => "start", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 3", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 4", "partial_message" => "true" },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false" },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1\n message 2\nend", "partial_message" => "false" },
+        { "container_id" => "1", "message" => "start\n message 3\n message 4\nend", "partial_message" => "false" },
+      ]
+      assert_equal(expected, filtered)
+    end
+
+    test "filter with containerd/cri style events" do
+      config = <<-CONFIG
+        key message
+        partial_key flag
+        partial_value P
+      CONFIG
+      # These messages are parsed by a parser plugin before this plugin will process messages
+      messages = [
+        { "container_id" => "1", "message" => "start", "flag" => "P" },
+        { "container_id" => "1", "message" => " message 1", "flag" => "P" },
+        { "container_id" => "1", "message" => " message 2", "flag" => "P" },
+        { "container_id" => "1", "message" => "end", "flag" => "F" },
+        { "container_id" => "1", "message" => "start", "flag" => "P" },
+        { "container_id" => "1", "message" => " message 3", "flag" => "P" },
+        { "container_id" => "1", "message" => " message 4", "flag" => "P" },
+        { "container_id" => "1", "message" => "end", "flag" => "F" },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1\n message 2\nend" },
+        { "container_id" => "1", "message" => "start\n message 3\n message 4\nend" },
+      ]
+      assert_equal(expected, filtered)
+    end
+  end
+
   sub_test_case "use first timestamp" do
     test "use_first_timestamp true" do
       messages = [
