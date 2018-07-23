@@ -26,6 +26,12 @@ module Fluent::Plugin
     config_param :timeout_label, :string, default: nil
     desc "Use timestamp of first record when buffer is flushed"
     config_param :use_first_timestamp, :bool, default: false
+    desc "The field name that is the reference to concatenate records"
+    config_param :partial_key, :string, default: nil
+    desc "The value stored in the field specified by partial_key that represent partial log"
+    config_param :partial_value, :string, default: nil
+    desc "If true, keep partial_key in concatenated records"
+    config_param :keep_partial_key, :bool, default: false
 
     class TimeoutError < StandardError
     end
@@ -43,17 +49,28 @@ module Fluent::Plugin
     def configure(conf)
       super
 
-      if @n_lines && (@multiline_start_regexp || @multiline_end_regexp || @continuous_line_regexp)
-        raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp/continuous_line_regexp are exclusive"
+      if @n_lines && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive"
       end
-      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil?
+      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil? && @partial_key.nil?
         raise Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required"
+      end
+      if @partial_key && @n_lines
+        raise Fluent::ConfigError, "partial_key and n_lines are exclusive"
+      end
+      if @partial_key && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "partial_key and multiline_start_regexp/multiline_end_regexp are exclusive"
+      end
+      if @partial_key && @partial_value.nil?
+        raise Fluent::ConfigError, "partial_value is required when partial_key is specified"
       end
 
       @mode = nil
       case
       when @n_lines
         @mode = :line
+      when @partial_key
+        @mode = :partial
       when @multiline_start_regexp || @multiline_end_regexp
         @mode = :regexp
         if @multiline_start_regexp
@@ -96,7 +113,9 @@ module Fluent::Plugin
           unless flushed_es.empty?
             flushed_es.each do |_time, new_record|
               time = _time if @use_first_timestamp
-              new_es.add(time, record.merge(new_record))
+              merged_record = record.merge(new_record)
+              merged_record.delete(@partial_key) unless @keep_partial_key
+              new_es.add(time, merged_record)
             end
           end
         rescue => e
@@ -128,6 +147,8 @@ module Fluent::Plugin
       case @mode
       when :line
         process_line(stream_identity, tag, time, record)
+      when :partial
+        process_partial(stream_identity, tag, time, record)
       when :regexp
         process_regexp(stream_identity, tag, time, record)
       end
@@ -139,6 +160,18 @@ module Fluent::Plugin
       if @buffer[stream_identity].size >= @n_lines
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
+        new_es.add(time, new_record)
+      end
+      new_es
+    end
+
+    def process_partial(stream_identity, tag, time, record)
+      new_es = Fluent::MultiEventStream.new
+      @buffer[stream_identity] << [tag, time, record]
+      unless @partial_value == record[@partial_key]
+        new_time, new_record = flush_buffer(stream_identity)
+        time = new_time if @use_first_timestamp
+        new_record.delete(@partial_key)
         new_es.add(time, new_record)
       end
       new_es

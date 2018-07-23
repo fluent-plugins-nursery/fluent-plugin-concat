@@ -43,13 +43,13 @@ class FilterConcatTest < Test::Unit::TestCase
 
   sub_test_case "config" do
     test "empty" do
-      assert_raise(Fluent::ConfigError, "key parameter is required") do
+      assert_raise(Fluent::ConfigError.new("'key' parameter is required")) do
         create_driver("")
       end
     end
 
     test "exclusive" do
-      assert_raise(Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive") do
+      assert_raise(Fluent::ConfigError.new("n_lines and multiline_start_regexp/multiline_end_regexp are exclusive")) do
         create_driver(<<-CONFIG)
           key message
           n_lines 10
@@ -59,9 +59,48 @@ class FilterConcatTest < Test::Unit::TestCase
     end
 
     test "either" do
-      assert_raise(Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required") do
+      assert_raise(Fluent::ConfigError.new("Either n_lines or multiline_start_regexp or multiline_end_regexp is required")) do
         create_driver(<<-CONFIG)
           key message
+        CONFIG
+      end
+    end
+
+    test "partial_key with n_lines" do
+      assert_raise(Fluent::ConfigError.new("partial_key and n_lines are exclusive")) do
+        create_driver(<<-CONFIG)
+          key message
+          n_lines 10
+          partial_key partial_message
+        CONFIG
+      end
+    end
+
+    test "partial_key with multiline_start_regexp" do
+      assert_raise(Fluent::ConfigError.new("partial_key and multiline_start_regexp/multiline_end_regexp are exclusive")) do
+        create_driver(<<-CONFIG)
+          key message
+          multiline_start_regexp /xxx/
+          partial_key partial_message
+        CONFIG
+      end
+    end
+
+    test "partial_key with multiline_end_regexp" do
+      assert_raise(Fluent::ConfigError.new("partial_key and multiline_start_regexp/multiline_end_regexp are exclusive")) do
+        create_driver(<<-CONFIG)
+          key message
+          multiline_end_regexp /xxx/
+          partial_key partial_message
+        CONFIG
+      end
+    end
+
+    test "partial_key is specified but partial_value is missing" do
+      assert_raise(Fluent::ConfigError.new("partial_value is required when partial_key is specified")) do
+        create_driver(<<-CONFIG)
+          key message
+          partial_key partial_message
         CONFIG
       end
     end
@@ -495,6 +534,82 @@ class FilterConcatTest < Test::Unit::TestCase
         { "container_id" => "1", "message" => "single line message 1" },
         { "container_id" => "1", "message" => "start\n  message 3\n  message 4" },
         { "container_id" => "1", "message" => "single line message 2" },
+      ]
+      assert_equal(expected, filtered)
+    end
+  end
+
+  sub_test_case "partial_key" do
+    test "filter with docker style events" do
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 1", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 2", "partial_message" => "true" },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false" },
+        { "container_id" => "1", "message" => "start", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 3", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 4", "partial_message" => "true" },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false" },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1\n message 2\nend" },
+        { "container_id" => "1", "message" => "start\n message 3\n message 4\nend" },
+      ]
+      assert_equal(expected, filtered)
+    end
+
+    test "filter with docker style events keep partial_key" do
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+        keep_partial_key true
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 1", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 2", "partial_message" => "true" },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false" },
+        { "container_id" => "1", "message" => "start", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 3", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 4", "partial_message" => "true" },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false" },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1\n message 2\nend", "partial_message" => "false" },
+        { "container_id" => "1", "message" => "start\n message 3\n message 4\nend", "partial_message" => "false" },
+      ]
+      assert_equal(expected, filtered)
+    end
+
+    test "filter with containerd/cri style events" do
+      config = <<-CONFIG
+        key message
+        partial_key flag
+        partial_value P
+      CONFIG
+      # These messages are parsed by a parser plugin before this plugin will process messages
+      messages = [
+        { "container_id" => "1", "message" => "start", "flag" => "P" },
+        { "container_id" => "1", "message" => " message 1", "flag" => "P" },
+        { "container_id" => "1", "message" => " message 2", "flag" => "P" },
+        { "container_id" => "1", "message" => "end", "flag" => "F" },
+        { "container_id" => "1", "message" => "start", "flag" => "P" },
+        { "container_id" => "1", "message" => " message 3", "flag" => "P" },
+        { "container_id" => "1", "message" => " message 4", "flag" => "P" },
+        { "container_id" => "1", "message" => "end", "flag" => "F" },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1\n message 2\nend" },
+        { "container_id" => "1", "message" => "start\n message 3\n message 4\nend" },
       ]
       assert_equal(expected, filtered)
     end
