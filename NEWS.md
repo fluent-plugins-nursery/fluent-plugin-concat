@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v2.3.0
+
+### Improvements
+
+* Support `partial_key`, `partial_value` to concatenate split log lines. See #46, #52
+
 ## v2.2.3
 
 ### Fixes
