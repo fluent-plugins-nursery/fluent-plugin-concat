@@ -28,6 +28,8 @@ module Fluent::Plugin
     config_param :use_first_timestamp, :bool, default: false
     desc "The field name that is the reference to concatenate records"
     config_param :partial_key, :string, default: nil
+    desc "The value stored in the field specified by partial_key that represent partial log"
+    config_param :partial_value, :string, default: nil
 
     class TimeoutError < StandardError
     end
@@ -51,13 +53,16 @@ module Fluent::Plugin
       if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil?
         raise Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required"
       end
+      if @partial_key && @partial_value.nil?
+        raise Fluent::ConfigError, "partial_value is required when partial_key is specified"
+      end
 
       @mode = nil
       case
       when @n_lines
         @mode = :line
       when @partial_key
-          @mode = :partial
+        @mode = :partial
       when @multiline_start_regexp || @multiline_end_regexp
         @mode = :regexp
         if @multiline_start_regexp
@@ -153,7 +158,7 @@ module Fluent::Plugin
     def process_partial(stream_identity, tag, time, record)
       new_es = Fluent::MultiEventStream.new
       @buffer[stream_identity] << [tag, time, record]
-      unless record[@partial_key]
+      unless @partial_value == record[@partial_key]
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
         new_es.add(time, new_record)
