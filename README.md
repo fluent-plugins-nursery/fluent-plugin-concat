@@ -29,16 +29,16 @@ Or install it yourself as:
 
 ## Configuration
 
-**key** (required)
+**key** (string) (required)
 
 The key for part of multiline log.
 
-**separator**
+**separator** (string)
 
 The separator of lines.
 Default value is `"\n"`.
 
-**n\_lines**
+**n\_lines** (integer)
 
 The number of lines.
 This is exclusive with `multiline_start_regex`.
@@ -58,18 +58,33 @@ This is exclusive with `n_lines.`
 The regexp to match continuous lines.
 This is exclusive with `n_lines.`
 
-**stream\_identity\_key**
+**stream\_identity\_key** (string)
 
 The key to determine which stream an event belongs to.
 
-**flush\_interval**
+**flush\_interval** (integer)
 
 The number of seconds after which the last received event log will be flushed.
 If specified 0, wait for next line forever.
 
-**use\_first\_timestamp**
+**use\_first\_timestamp** (bool)
 
 Use timestamp of first record when buffer is flushed.
+Default value is `false`.
+
+**partial\_key** (string)
+
+The field name that is the reference to concatenate records
+
+**partial\_value** (string)
+
+The value stored in the field specified by partial_key that represent partial log
+
+**keep\_partial\_key** (bool)
+
+If true, keep partial_key in concatenated records
+Default value is `false`.
+
 
 ## Usage
 
