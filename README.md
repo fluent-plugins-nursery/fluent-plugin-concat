@@ -67,6 +67,10 @@ The key to determine which stream an event belongs to.
 The number of seconds after which the last received event log will be flushed.
 If specified 0, wait for next line forever.
 
+**timeout\_label** (string)
+
+The label name to handle events caused by timeout.
+
 **use\_first\_timestamp** (bool)
 
 Use timestamp of first record when buffer is flushed.
