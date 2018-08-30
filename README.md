@@ -156,7 +156,7 @@ Handle single line JSON from Docker containers.
 </filter>
 ```
 
-Handle Docker's `partial_message`, and do not add new line between parts.
+Handle Docker logs splitted in several parts (using `partial_message`), and do not add new line between parts.
 
 ```aconf
 <filter>
@@ -164,6 +164,17 @@ Handle Docker's `partial_message`, and do not add new line between parts.
   key message
   partial_key partial_message
   partial_value true
+  separator ""
+</filter>
+```
+
+Handle Docker logs splitted in several parts (using newline detection), and do not add new line between parts (prior to Docker 18.06).
+
+```aconf
+<filter **>
+  @type concat
+  key log
+  multiline_end_regexp /\\n$/
   separator ""
 </filter>
 ```
