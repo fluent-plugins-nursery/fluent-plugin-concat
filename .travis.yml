@@ -9,13 +9,17 @@ notifications:
     on_failure: always
     on_start: never
 
-rvm:
-  - 2.1
-  - 2.2
-  - 2.3
-  - 2.4.5
-  - 2.5.5
-  - 2.6.2
-
-gemfile:
-  - Gemfile
+matrix:
+  include:
+    - rvm: 2.1
+      gemfile: gemfiles/ruby2.3.gemfile
+    - rvm: 2.2
+      gemfile: gemfiles/ruby2.3.gemfile
+    - rvm: 2.3
+      gemfile: gemfiles/ruby2.3.gemfile
+    - rvm: 2.4.5
+      gemfile: Gemfile
+    - rvm: 2.5.5
+      gemfile: Gemfile
+    - rvm: 2.6.2
+      gemfile: Gemfile
