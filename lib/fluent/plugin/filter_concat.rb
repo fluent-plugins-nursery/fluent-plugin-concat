@@ -22,7 +22,7 @@ module Fluent::Plugin
     config_param :stream_identity_key, :string, default: nil
     desc "The interval between data flushes, 0 means disable timeout"
     config_param :flush_interval, :time, default: 60
-    desc "The label name to handle timeout"
+    desc "The label name to handle events caused by timeout"
     config_param :timeout_label, :string, default: nil
     desc "Use timestamp of first record when buffer is flushed"
     config_param :use_first_timestamp, :bool, default: false
@@ -44,6 +44,10 @@ module Fluent::Plugin
     config_param :partial_cri_logtag_key, :string, default: nil
     desc "The key name that is referred to detect stream name on cri log"
     config_param :partial_cri_stream_key, :string, default: "stream"
+    desc "The max size of each buffer"
+    config_param :buffer_limit_size, :size, default: 500 * 1024 # 500k
+    desc "The method if overflow buffer"
+    config_param :buffer_overflow_method, :enum, list: [:ignore, :truncate, :drop, :new], default: :ignore
 
     class TimeoutError < StandardError
     end
@@ -52,6 +56,7 @@ module Fluent::Plugin
       super
 
       @buffer = Hash.new {|h, k| h[k] = [] }
+      @buffer_size = Hash.new(0)
       @timeout_map_mutex = Thread::Mutex.new
       @timeout_map_mutex.synchronize do
         @timeout_map = Hash.new {|h, k| h[k] = Fluent::Engine.now }
@@ -270,12 +275,38 @@ module Fluent::Plugin
 
     def process_partial(stream_identity, tag, time, record)
       new_es = Fluent::MultiEventStream.new
-      @buffer[stream_identity] << [tag, time, record]
-      unless @partial_value == record[@partial_key]
+      force_flush = false
+      if overflow?(stream_identity, record)
+        force_flush = case @buffer_overflow_method
+                      when :ignore
+                        @buffer[stream_identity] << [tag, time, record]
+                        false
+                      when :truncate
+                        true
+                      when :drop
+                        @buffer[stream_identity] = []
+                        false
+                      when :new
+                        true
+                      end
+      else
+        @buffer[stream_identity] << [tag, time, record]
+      end
+      if force_flush || @partial_value != record[@partial_key]
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
         new_record.delete(@partial_key)
         new_es.add(time, new_record)
+      end
+      if force_flush && @buffer_overflow_method == :new
+        @buffer[stream_identity] << [tag, time, record]
+        @buffer_size[stream_identity] = record.keys.sum(&:bytesize) + record.values.sum(&:bytesize)
+        if @partial_value != record[@partial_key]
+          new_time, new_record = flush_buffer(stream_identity)
+          time = new_time if @use_first_timestamp
+          new_record.delete(@partial_key)
+          new_es.add(time, new_record)
+        end
       end
       new_es
     end
@@ -371,6 +402,17 @@ module Fluent::Plugin
       end
     end
 
+    def overflow?(stream_identity, record)
+      size = record.keys.sum(&:bytesize) + record.values.sum(&:bytesize)
+      if @buffer_size[stream_identity] + size > @buffer_limit_size
+        @buffer_size[stream_identity] = 0
+        true
+      else
+        @buffer_size[stream_identity] += size
+        false
+      end
+    end
+
     def flush_buffer(stream_identity, new_element = nil)
       lines = if @mode == :partial_metadata
                 @buffer[stream_identity]
@@ -385,6 +427,7 @@ module Fluent::Plugin
       }
       @buffer[stream_identity] = []
       @buffer[stream_identity] << new_element if new_element
+      @buffer_size[stream_identity] = 0
       [time, first_record.merge(new_record)]
     end
 
@@ -430,6 +473,21 @@ module Fluent::Plugin
         event_router.emit(tag, time, record)
       else
         router.emit_error_event(tag, time, record, TimeoutError.new(message))
+      end
+    end
+  end
+end
+
+class Array
+  # Support Ruby 2.3 or earlier
+  unless [].respond_to?(:sum)
+    def sum
+      inject(0) do |memo, value|
+        if block_given?
+          memo + yield(value)
+        else
+          memo + value
+        end
       end
     end
   end
