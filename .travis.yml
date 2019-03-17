@@ -13,9 +13,9 @@ rvm:
   - 2.1
   - 2.2
   - 2.3
-  - 2.4.3
-  - 2.5.0
+  - 2.4.5
+  - 2.5.5
+  - 2.6.2
 
 gemfile:
   - Gemfile
-  - gemfiles/fluentd_v0.14.gemfile
