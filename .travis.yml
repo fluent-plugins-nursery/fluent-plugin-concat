@@ -11,12 +11,6 @@ notifications:
 
 matrix:
   include:
-    - rvm: 2.1
-      gemfile: gemfiles/ruby2.3.gemfile
-    - rvm: 2.2
-      gemfile: gemfiles/ruby2.3.gemfile
-    - rvm: 2.3
-      gemfile: gemfiles/ruby2.3.gemfile
     - rvm: 2.4.5
       gemfile: Gemfile
     - rvm: 2.5.5
