@@ -59,7 +59,7 @@ class FilterConcatTest < Test::Unit::TestCase
     end
 
     test "either" do
-      assert_raise(Fluent::ConfigError.new("Either n_lines or multiline_start_regexp or multiline_end_regexp is required")) do
+      assert_raise(Fluent::ConfigError.new("Either n_lines, multiline_start_regexp, multiline_end_regexp, partial_key or use_partial_metadata is required")) do
         create_driver(<<-CONFIG)
           key message
         CONFIG
@@ -589,6 +589,33 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
+    test "filter with docker style events keep partial_key includes single line event" do
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+        keep_partial_key true
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 1", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 2", "partial_message" => "true" },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false" },
+        { "container_id" => "1", "message" => "single line" },
+        { "container_id" => "1", "message" => "start", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 3", "partial_message" => "true" },
+        { "container_id" => "1", "message" => " message 4", "partial_message" => "true" },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false" },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1\n message 2\nend", "partial_message" => "false" },
+        { "container_id" => "1", "message" => "single line" },
+        { "container_id" => "1", "message" => "start\n message 3\n message 4\nend", "partial_message" => "false" },
+      ]
+      assert_equal(expected, filtered)
+    end
+
     test "filter with containerd/cri style events" do
       config = <<-CONFIG
         key message
@@ -609,6 +636,167 @@ class FilterConcatTest < Test::Unit::TestCase
       filtered = filter(config, messages, wait: 3)
       expected = [
         { "container_id" => "1", "message" => "start\n message 1\n message 2\nend" },
+        { "container_id" => "1", "message" => "start\n message 3\n message 4\nend" },
+      ]
+      assert_equal(expected, filtered)
+    end
+  end
+
+  sub_test_case "partial meta (for Docker 19.03 or later)" do
+    test "partial messages only" do
+      config = <<-CONFIG
+        key message
+        use_partial_metadata true
+      CONFIG
+      messages = [
+        {
+          "container_id" => "1",
+          "message" => "start",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "1",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 1",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "2",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 2",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "3",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => "end",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "4",
+          "partial_last" => "true"
+        },
+        {
+          "container_id" => "1",
+          "message" => "start",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "1",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 3",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "2",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 4",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "3",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => "end",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "4",
+          "partial_last" => "true"
+        },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1\n message 2\nend" },
+        { "container_id" => "1", "message" => "start\n message 3\n message 4\nend" },
+      ]
+      assert_equal(expected, filtered)
+    end
+    test "mixed" do
+      config = <<-CONFIG
+        key message
+        use_partial_metadata true
+      CONFIG
+      messages = [
+        {
+          "container_id" => "1",
+          "message" => "start",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "1",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 1",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "2",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 2",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "3",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => "end",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "4",
+          "partial_last" => "true"
+        },
+        { "container_id" => "1", "message" => "single line" },
+        {
+          "container_id" => "1",
+          "message" => "start",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "1",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 3",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "2",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 4",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "3",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => "end",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "4",
+          "partial_last" => "true"
+        },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1\n message 2\nend" },
+        { "container_id" => "1", "message" => "single line" },
         { "container_id" => "1", "message" => "start\n message 3\n message 4\nend" },
       ]
       assert_equal(expected, filtered)
