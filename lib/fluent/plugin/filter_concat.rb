@@ -304,7 +304,13 @@ module Fluent::Plugin
     end
 
     def flush_buffer(stream_identity, new_element = nil)
-      lines = @buffer[stream_identity].map {|_tag, _time, record| record[@key] }
+      lines = if @mode == :partial_metadata
+                @buffer[stream_identity]
+                  .sort_by {|_tag, _time, record| record["partial_ordinal"].to_i }
+                  .map {|_tag, _time, record| record[@key] }
+              else
+                @buffer[stream_identity].map {|_tag, _time, record| record[@key] }
+              end
       _tag, time, first_record = @buffer[stream_identity].first
       new_record = {
         @key => lines.join(@separator)

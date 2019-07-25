@@ -721,6 +721,7 @@ class FilterConcatTest < Test::Unit::TestCase
       ]
       assert_equal(expected, filtered)
     end
+
     test "mixed" do
       config = <<-CONFIG
         key message
@@ -782,6 +783,87 @@ class FilterConcatTest < Test::Unit::TestCase
           "partial_message" => "true",
           "partial_id" => "partial2",
           "partial_ordinal" => "3",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => "end",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "4",
+          "partial_last" => "true"
+        },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1\n message 2\nend" },
+        { "container_id" => "1", "message" => "single line" },
+        { "container_id" => "1", "message" => "start\n message 3\n message 4\nend" },
+      ]
+      assert_equal(expected, filtered)
+    end
+
+    test "unsorted" do
+      config = <<-CONFIG
+        key message
+        use_partial_metadata true
+      CONFIG
+      messages = [
+        {
+          "container_id" => "1",
+          "message" => "start",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "1",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 2",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "3",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 1",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "2",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => "end",
+          "partial_message" => "true",
+          "partial_id" => "partial1",
+          "partial_ordinal" => "4",
+          "partial_last" => "true"
+        },
+        { "container_id" => "1", "message" => "single line" },
+        {
+          "container_id" => "1",
+          "message" => "start",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "1",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 4",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "3",
+          "partial_last" => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => " message 3",
+          "partial_message" => "true",
+          "partial_id" => "partial2",
+          "partial_ordinal" => "2",
           "partial_last" => "false"
         },
         {
