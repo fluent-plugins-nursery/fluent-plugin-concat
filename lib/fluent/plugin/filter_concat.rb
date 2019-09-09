@@ -69,13 +69,13 @@ module Fluent::Plugin
         raise Fluent::ConfigError, "partial_value is required when partial_key is specified"
       end
       if @use_partial_metadata && @n_lines
-        raise Fluent::ConfigError, "user_partial_metadata and n_lines are exclusive"
+        raise Fluent::ConfigError, "use_partial_metadata and n_lines are exclusive"
       end
       if @use_partial_metadata && (@multiline_start_regexp || @multiline_end_regexp)
-        raise Fluent::ConfigError, "user_partial_metadata and multiline_start_regexp/multiline_end_regexp are exclusive"
+        raise Fluent::ConfigError, "use_partial_metadata and multiline_start_regexp/multiline_end_regexp are exclusive"
       end
       if @use_partial_metadata && @partial_key
-        raise Fluent::ConfigError, "user_partial_metadata and partial_key are exclusive"
+        raise Fluent::ConfigError, "use_partial_metadata and partial_key are exclusive"
       end
 
       @mode = nil
