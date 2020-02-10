@@ -168,9 +168,20 @@ Handle Docker logs splitted in several parts (using `partial_message`), and do n
 ```aconf
 <filter>
   @type concat
-  key message
+  key log
   partial_key partial_message
   partial_value true
+  separator ""
+</filter>
+```
+
+(Docker v19.03+) Handle Docker logs splitted in several parts (using `use_partial_metadata`), and do not add new line between parts.
+
+```aconf
+<filter>
+  @type concat
+  key log
+  use_partial_metadata true
   separator ""
 </filter>
 ```
