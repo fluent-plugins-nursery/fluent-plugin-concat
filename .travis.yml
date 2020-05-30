@@ -11,9 +11,9 @@ notifications:
 
 matrix:
   include:
-    - rvm: 2.4.5
+    - rvm: 2.5
       gemfile: Gemfile
-    - rvm: 2.5.5
+    - rvm: 2.6
       gemfile: Gemfile
-    - rvm: 2.6.2
+    - rvm: 2.7
       gemfile: Gemfile
