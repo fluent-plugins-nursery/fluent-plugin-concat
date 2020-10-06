@@ -288,16 +288,16 @@ module Fluent::Plugin
     end
 
     def firstline?(text)
-      @multiline_start_regexp && !!@multiline_start_regexp.match(text)
+      @multiline_start_regexp && @multiline_start_regexp.match?(text)
     end
 
     def lastline?(text)
-      @multiline_end_regexp && !!@multiline_end_regexp.match(text)
+      @multiline_end_regexp && @multiline_end_regexp.match?(text)
     end
 
     def continuous_line?(text)
       if @continuous_line_regexp
-        !!@continuous_line_regexp.match(text)
+        @continuous_line_regexp.match?(text)
       else
         true
       end
