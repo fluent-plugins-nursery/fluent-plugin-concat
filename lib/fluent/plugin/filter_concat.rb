@@ -113,12 +113,12 @@ module Fluent::Plugin
     end
 
     def filter_stream(tag, es)
+      if /\Afluent\.(?:trace|debug|info|warn|error|fatal)\z/ =~ tag
+        return es
+      end
+
       new_es = Fluent::MultiEventStream.new
       es.each do |time, record|
-        if /\Afluent\.(?:trace|debug|info|warn|error|fatal)\z/ =~ tag
-          new_es.add(time, record)
-          next
-        end
         unless record.key?(@key)
           new_es.add(time, record)
           next
