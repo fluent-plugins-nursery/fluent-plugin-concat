@@ -113,12 +113,12 @@ module Fluent::Plugin
     end
 
     def filter_stream(tag, es)
+      if /\Afluent\.(?:trace|debug|info|warn|error|fatal)\z/ =~ tag
+        return es
+      end
+
       new_es = Fluent::MultiEventStream.new
       es.each do |time, record|
-        if /\Afluent\.(?:trace|debug|info|warn|error|fatal)\z/ =~ tag
-          new_es.add(time, record)
-          next
-        end
         unless record.key?(@key)
           new_es.add(time, record)
           next
@@ -130,7 +130,7 @@ module Fluent::Plugin
           end
         end
         if @mode == :partial_metadata
-          unless record.key?("partial_message")
+          unless record.key?("partial_message".freeze)
             new_es.add(time, record)
             next
           end
@@ -146,10 +146,10 @@ module Fluent::Plugin
                 merged_record.delete(@partial_key) unless @keep_partial_key
               when :partial_metadata
                 unless @keep_partial_metadata
-                  merged_record.delete("partial_message")
-                  merged_record.delete("partial_id")
-                  merged_record.delete("partial_ordinal")
-                  merged_record.delete("partial_last")
+                  merged_record.delete("partial_message".freeze)
+                  merged_record.delete("partial_id".freeze)
+                  merged_record.delete("partial_ordinal".freeze)
+                  merged_record.delete("partial_last".freeze)
                 end
               end
               new_es.add(time, merged_record)
@@ -288,16 +288,16 @@ module Fluent::Plugin
     end
 
     def firstline?(text)
-      @multiline_start_regexp && !!@multiline_start_regexp.match(text)
+      @multiline_start_regexp && @multiline_start_regexp.match?(text)
     end
 
     def lastline?(text)
-      @multiline_end_regexp && !!@multiline_end_regexp.match(text)
+      @multiline_end_regexp && @multiline_end_regexp.match?(text)
     end
 
     def continuous_line?(text)
       if @continuous_line_regexp
-        !!@continuous_line_regexp.match(text)
+        @continuous_line_regexp.match?(text)
       else
         true
       end
