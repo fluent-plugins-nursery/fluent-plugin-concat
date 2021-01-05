@@ -97,6 +97,17 @@ Use partial metadata to concatenate multiple records
 
 If true, keep partial metadata
 
+**partial\_metadata\_format** (string) (optional)
+
+Configure based on the input plugin, that is used.
+The docker fluentd and journald log drivers are behaving differently, so the plugin needs to know, what to look for.
+Use `docker-journald-lowercase`, if you have `fields_lowercase true` in the `journald` source config
+
+Valid options: `docker-fluentd`, `docker-journald`, `docker-journald-lowercase`
+
+Default value is `docker-fluentd`
+
+
 ## Usage
 
 Every 10 events will be concatenated into one event.
@@ -182,6 +193,20 @@ Handle Docker logs splitted in several parts (using `partial_message`), and do n
   @type concat
   key log
   use_partial_metadata true
+  separator ""
+</filter>
+```
+
+(Docker v20.10+) Handle Docker logs splitted in several parts (using `use_partial_metadata`), and do not add new line between parts.
+
+Docker v20.10 improved partial message handling by adding better metadata in the journald log driver, this works now similarily to the fluentd log driver, but requires one additional setting
+
+```aconf
+<filter>
+  @type concat
+  key log
+  use_partial_metadata true
+  partial_metadata_format docker-journald
   separator ""
 </filter>
 ```
