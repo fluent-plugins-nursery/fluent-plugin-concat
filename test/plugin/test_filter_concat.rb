@@ -643,75 +643,87 @@ class FilterConcatTest < Test::Unit::TestCase
   end
 
   sub_test_case "partial meta (for Docker 19.03 or later)" do
-    test "partial messages only" do
+    data("docker-fluentd format" => ["docker-fluentd",
+                                     "partial_message", "partial_id",
+                                     "partial_ordinal", "partial_last"],
+         "docker-journald format" => ["docker-journald",
+                                      "CONTAINER_PARTIAL_MESSAGE", "CONTAINER_PARTIAL_ID",
+                                      "CONTAINER_PARTIAL_ORDINAL", "CONTAINER_PARTIAL_LAST"],
+         "docker-journald-lowercase format" => ["docker-journald-lowercase",
+                                                "container_partial_message", "container_partial_id",
+                                                "container_partial_ordinal", "container_partial_last"],
+        )
+    test "partial messages only" do |data|
+      partial_metadata_format, partial_message_key, partial_id_key, partial_ordinal_key, partial_last_key = data
       config = <<-CONFIG
         key message
         use_partial_metadata true
+        partial_metadata_format #{partial_metadata_format}
       CONFIG
       messages = [
         {
           "container_id" => "1",
           "message" => "start",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "1",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "1",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 1",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "2",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "2",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 2",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "3",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "3",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => "end",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "4",
-          "partial_last" => "true"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "4",
+          partial_last_key => "true"
         },
         {
           "container_id" => "1",
           "message" => "start",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "1",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "1",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 3",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "2",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "2",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 4",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "3",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "3",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => "end",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "4",
-          "partial_last" => "true"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "4",
+          partial_last_key => "true"
         },
       ]
       filtered = filter(config, messages, wait: 3)
@@ -722,76 +734,88 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    test "mixed" do
+    data("docker-fluentd format" => ["docker-fluentd",
+                                     "partial_message", "partial_id",
+                                     "partial_ordinal", "partial_last"],
+         "docker-journald format" => ["docker-journald",
+                                      "CONTAINER_PARTIAL_MESSAGE", "CONTAINER_PARTIAL_ID",
+                                      "CONTAINER_PARTIAL_ORDINAL", "CONTAINER_PARTIAL_LAST"],
+         "docker-journald-lowercase format" => ["docker-journald-lowercase",
+                                                "container_partial_message", "container_partial_id",
+                                                "container_partial_ordinal", "container_partial_last"],
+        )
+    test "mixed" do |data|
+      partial_metadata_format, partial_message_key, partial_id_key, partial_ordinal_key, partial_last_key = data
       config = <<-CONFIG
         key message
         use_partial_metadata true
+        partial_metadata_format #{partial_metadata_format}
       CONFIG
       messages = [
         {
           "container_id" => "1",
           "message" => "start",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "1",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "1",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 1",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "2",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "2",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 2",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "3",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "3",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => "end",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "4",
-          "partial_last" => "true"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "4",
+          partial_last_key => "true"
         },
         { "container_id" => "1", "message" => "single line" },
         {
           "container_id" => "1",
           "message" => "start",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "1",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "1",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 3",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "2",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "2",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 4",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "3",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "3",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => "end",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "4",
-          "partial_last" => "true"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "4",
+          partial_last_key => "true"
         },
       ]
       filtered = filter(config, messages, wait: 3)
@@ -803,76 +827,88 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    test "unsorted" do
+    data("docker-fluentd format" => ["docker-fluentd",
+                                     "partial_message", "partial_id",
+                                     "partial_ordinal", "partial_last"],
+         "docker-journald format" => ["docker-journald",
+                                      "CONTAINER_PARTIAL_MESSAGE", "CONTAINER_PARTIAL_ID",
+                                      "CONTAINER_PARTIAL_ORDINAL", "CONTAINER_PARTIAL_LAST"],
+         "docker-journald-lowercase format" => ["docker-journald-lowercase",
+                                                "container_partial_message", "container_partial_id",
+                                                "container_partial_ordinal", "container_partial_last"],
+        )
+    test "unsorted" do |data|
+      partial_metadata_format, partial_message_key, partial_id_key, partial_ordinal_key, partial_last_key = data
       config = <<-CONFIG
         key message
         use_partial_metadata true
+        partial_metadata_format #{partial_metadata_format}
       CONFIG
       messages = [
         {
           "container_id" => "1",
           "message" => "start",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "1",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "1",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 2",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "3",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "3",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 1",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "2",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "2",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => "end",
-          "partial_message" => "true",
-          "partial_id" => "partial1",
-          "partial_ordinal" => "4",
-          "partial_last" => "true"
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "4",
+          partial_last_key => "true"
         },
         { "container_id" => "1", "message" => "single line" },
         {
           "container_id" => "1",
           "message" => "start",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "1",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "1",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 4",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "3",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "3",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => " message 3",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "2",
-          "partial_last" => "false"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "2",
+          partial_last_key => "false"
         },
         {
           "container_id" => "1",
           "message" => "end",
-          "partial_message" => "true",
-          "partial_id" => "partial2",
-          "partial_ordinal" => "4",
-          "partial_last" => "true"
+          partial_message_key => "true",
+          partial_id_key => "partial2",
+          partial_ordinal_key => "4",
+          partial_last_key => "true"
         },
       ]
       filtered = filter(config, messages, wait: 3)
