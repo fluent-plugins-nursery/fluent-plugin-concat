@@ -97,13 +97,15 @@ Use partial metadata to concatenate multiple records
 
 If true, keep partial metadata
 
-**partial\_metadata\_format** (string) (optional)
+**partial\_metadata\_format** (enum) (optional)
+
+Input format of the partial metadata (fluentd or journald docker log driver)
 
 Configure based on the input plugin, that is used.
 The docker fluentd and journald log drivers are behaving differently, so the plugin needs to know, what to look for.
 Use `docker-journald-lowercase`, if you have `fields_lowercase true` in the `journald` source config
 
-Valid options: `docker-fluentd`, `docker-journald`, `docker-journald-lowercase`
+Available values: `docker-fluentd`, `docker-journald`, `docker-journald-lowercase`
 
 Default value is `docker-fluentd`
 

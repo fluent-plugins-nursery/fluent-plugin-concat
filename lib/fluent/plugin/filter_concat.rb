@@ -35,7 +35,7 @@ module Fluent::Plugin
     desc "Use partial metadata to concatenate multiple records"
     config_param :use_partial_metadata, :bool, default: false
     desc "Input format of the partial metadata (fluentd or journald docker log driver)"
-    config_param :partial_metadata_format, :string, default: "docker-fluentd"
+    config_param :partial_metadata_format, :enum, list: [:"docker-fluentd", :"docker-journald", :"docker-journald-lowercase"], default: :"docker-fluentd"
     desc "If true, keep partial metadata"
     config_param :keep_partial_metadata, :bool, default: false
 
@@ -79,9 +79,6 @@ module Fluent::Plugin
       if @use_partial_metadata && @partial_key
         raise Fluent::ConfigError, "use_partial_metadata and partial_key are exclusive"
       end
-      unless ["docker-fluentd", "docker-journald", "docker-journald-lowercase"].include?(@partial_metadata_format)
-        raise Fluent::ConfigError, "partial_metadata_format only supports docker-fluentd, docker-journald or docker-journald-lowercase"
-      end
 
       @mode = nil
       case
@@ -92,13 +89,13 @@ module Fluent::Plugin
       when @use_partial_metadata
         @mode = :partial_metadata
         case @partial_metadata_format
-        when "docker-fluentd"
+        when :"docker-fluentd"
           @partial_message_field     = "partial_message".freeze
           @partial_id_field          = "partial_id".freeze
           @partial_ordinal_field     = "partial_ordinal".freeze
           @partial_last_field        = "partial_last".freeze
           @partial_message_indicator = @partial_message_field
-        when "docker-journald"
+        when :"docker-journald"
           @partial_message_field     = "CONTAINER_PARTIAL_MESSAGE".freeze
           @partial_id_field          = "CONTAINER_PARTIAL_ID".freeze
           @partial_ordinal_field     = "CONTAINER_PARTIAL_ORDINAL".freeze
@@ -106,7 +103,7 @@ module Fluent::Plugin
           # the journald log driver does not add CONTAINER_PARTIAL_MESSAGE to the last message
           # so we help ourself by using another indicator
           @partial_message_indicator = @partial_id_field
-        when "docker-journald-lowercase"
+        when :"docker-journald-lowercase"
           @partial_message_field     = "container_partial_message".freeze
           @partial_id_field          = "container_partial_id".freeze
           @partial_ordinal_field     = "container_partial_ordinal".freeze
