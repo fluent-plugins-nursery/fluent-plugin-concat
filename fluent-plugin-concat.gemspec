@@ -22,4 +22,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "test-unit", ">= 3.1.0"
   spec.add_development_dependency "test-unit-rr"
   spec.add_development_dependency "appraisal"
+  spec.add_development_dependency "webrick"
 end
