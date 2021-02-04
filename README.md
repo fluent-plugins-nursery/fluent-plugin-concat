@@ -29,86 +29,50 @@ Or install it yourself as:
 
 ## Configuration
 
-**key** (string) (required)
+### Example
 
-The key for part of multiline log.
+```
+<filter docker.log>
+  @type concat
+  key loga
+  #separator "\n"
+  n_lines 10
+  #multiline_start_regexp /^Start/
+  #multiline_end_regexp /^End/
+  #continuous_line_regexp nil
+  #stream_identity_key nil
+  #flush_interval 60
+  #timeout_label nil
+  #use_first_timestamp false
+  #partial_key nil
+  #partial_value nil
+  #keep_partial_key false
+  #use_partial_metadata false
+  #keep_partial_metadata false
+  #partial\_metadata\_format docker-fluentd
+</filter>
+```
 
-**separator** (string) (optional)
+### Parameter
 
-The separator of lines.
-Default value is `"\n"`.
-
-**n\_lines** (integer) (optional)
-
-The number of lines.
-This is exclusive with `multiline_start_regex`.
-
-**multiline\_start\_regexp** (string) (optional)
-
-The regexp to match beginning of multiline.
-This is exclusive with `n_lines.`
-
-**multiline\_end\_regexp** (string) (optional)
-
-The regexp to match ending of multiline.
-This is exclusive with `n_lines.`
-
-**continuous\_line\_regexp** (string) (optional)
-
-The regexp to match continuous lines.
-This is exclusive with `n_lines.`
-
-**stream\_identity\_key** (string) (optional)
-
-The key to determine which stream an event belongs to.
-
-**flush\_interval** (integer) (optional)
-
-The number of seconds after which the last received event log will be flushed.
-If specified 0, wait for next line forever.
-
-**timeout\_label** (string) (optional)
-
-The label name to handle events caused by timeout.
-
-**use\_first\_timestamp** (bool) (optional)
-
-Use timestamp of first record when buffer is flushed.
-Default value is `false`.
-
-**partial\_key** (string) (optional)
-
-The field name that is the reference to concatenate records
-
-**partial\_value** (string) (optional)
-
-The value stored in the field specified by partial_key that represent partial log
-
-**keep\_partial\_key** (bool) (optional)
-
-If true, keep partial_key in concatenated records
-Default value is `false`.
-
-**use\_partial\_metadata** (bool) (optional)
-
-Use partial metadata to concatenate multiple records
-
-**keep\_partial\_metadata** (bool) (optional)
-
-If true, keep partial metadata
-
-**partial\_metadata\_format** (enum) (optional)
-
-Input format of the partial metadata (fluentd or journald docker log driver)
-
-Configure based on the input plugin, that is used.
-The docker fluentd and journald log drivers are behaving differently, so the plugin needs to know, what to look for.
-Use `docker-journald-lowercase`, if you have `fields_lowercase true` in the `journald` source config
-
-Available values: `docker-fluentd`, `docker-journald`, `docker-journald-lowercase`
-
-Default value is `docker-fluentd`
-
+|parameter|description|default|
+|---|---|---|
+|key|The key for part of multiline log||
+|separator|The separator of lines|`"\n"`|
+|n\_lines|The number of lines. This is exclusive with `multiline_start_regex`|nil|
+|multiline\_start\_regexp|The regexp to match beginning of multiline. This is exclusive with `n_lines`|nil|
+|multiline\_end\_regexp|The regexp to match ending of multiline.This is exclusive with `n_lines`|nil|
+|continuous\_line\_regexp|The regexp to match continuous lines.This is exclusive with `n_lines`|nil|
+|stream\_identity\_key|The key to determine which stream an event belongs to|nil|
+|flush\_interval|The number of seconds after which the last received event log will be flushed.If specified 0, wait for next line foreverr|60|
+|timeout\_label|The label name to handle events caused by timeout|nil|
+|use\_first\_timestamp|Use timestamp of first record when buffer is flushed|`false`|
+|partial\_key|The field name that is the reference to concatenate records|nil|
+|partial\_value|The value stored in the field specified by partial_key that represent partial log|nil|
+|keep\_partial\_key|If true, keep partial_key in concatenated records|`false`|
+|use\_partial\_metadata|Use partial metadata to concatenate multiple records|`false`|
+|keep\_partial\_metadata|If true, keep partial metadata|`false`|
+|partial\_metadata\_format|Input format of the partial metadata (fluentd or journald docker log driver) ( `docker-fluentd`, `docker-journald`, `docker-journald-lowercase`)<br>Configure based on the input plugin, that is used. <br>The docker fluentd and journald log drivers are behaving differently, so the plugin needs to know, what to look for.<br>Use `docker-journald-lowercase`, if you have `fields_lowercase true` in the `journald` source config |`docker-fluentd`|
 
 ## Usage
 
