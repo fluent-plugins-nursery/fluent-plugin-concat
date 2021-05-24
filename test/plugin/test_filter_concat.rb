@@ -59,7 +59,7 @@ class FilterConcatTest < Test::Unit::TestCase
     end
 
     test "either" do
-      assert_raise(Fluent::ConfigError.new("Either n_lines, multiline_start_regexp, multiline_end_regexp, partial_key or use_partial_metadata is required")) do
+      assert_raise(Fluent::ConfigError.new("Either n_lines, multiline_start_regexp, multiline_end_regexp, partial_key, use_partial_metadata or use_partial_cri_logtag is required")) do
         create_driver(<<-CONFIG)
           key message
         CONFIG
@@ -124,6 +124,15 @@ class FilterConcatTest < Test::Unit::TestCase
         multiline_end_regexp /^end/
       CONFIG
       assert_equal(:regexp, d.instance.instance_variable_get(:@mode))
+    end
+
+    test "use_partial_cri_logtag" do
+      d = create_driver(<<-CONFIG)
+        key message
+        use_partial_cri_logtag true
+        partial_cri_logtag_key logtag
+      CONFIG
+      assert_equal(:partial_cri, d.instance.instance_variable_get(:@mode))
     end
   end
 
@@ -996,6 +1005,27 @@ class FilterConcatTest < Test::Unit::TestCase
       expected = [
         [@time, { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }]
       ]
+      assert_equal(expected, filtered)
+    end
+  end
+
+  sub_test_case "CRI-O format log" do
+    test "filter with CRI-O style events" do
+      config = <<-CONFIG
+        key message
+        use_partial_cri_logtag true
+        partial_cri_logtag_key logtag
+      CONFIG
+      messages = [
+        {"stream" => "stdout", "logtag" => "F", "message" => "The content of the log entry 1"},
+        {"stream" => "stdout", "logtag" => "P", "message" => "First line of log entry 2"},
+        {"stream" => "stdout", "logtag" => "P", "message" => "Second line of the log entry 2"},
+        {"stream" => "stderr", "logtag" => "F", "message" => "Last line of the log entry 2"},
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        {"message" => "The content of the log entry 1"},
+        {"message" => "First line of log entry 2\nSecond line of the log entry 2\nLast line of the log entry 2"}]
       assert_equal(expected, filtered)
     end
   end

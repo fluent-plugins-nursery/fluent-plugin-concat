@@ -38,6 +38,12 @@ module Fluent::Plugin
     config_param :partial_metadata_format, :enum, list: [:"docker-fluentd", :"docker-journald", :"docker-journald-lowercase"], default: :"docker-fluentd"
     desc "If true, keep partial metadata"
     config_param :keep_partial_metadata, :bool, default: false
+    desc "Use cri log tag to concatenate multiple records"
+    config_param :use_partial_cri_logtag, :bool, default: false
+    desc "The key name that is referred to concatenate records on cri log"
+    config_param :partial_cri_logtag_key, :string, default: nil
+    desc "The key name that is referred to detect stream name on cri log"
+    config_param :partial_cri_stream_key, :string, default: "stream"
 
     class TimeoutError < StandardError
     end
@@ -55,8 +61,8 @@ module Fluent::Plugin
     def configure(conf)
       super
 
-      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil? && @partial_key.nil? && !@use_partial_metadata
-        raise Fluent::ConfigError, "Either n_lines, multiline_start_regexp, multiline_end_regexp, partial_key or use_partial_metadata is required"
+      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil? && @partial_key.nil? && !@use_partial_metadata && !@use_partial_cri_logtag
+        raise Fluent::ConfigError, "Either n_lines, multiline_start_regexp, multiline_end_regexp, partial_key, use_partial_metadata or use_partial_cri_logtag is required"
       end
       if @n_lines && (@multiline_start_regexp || @multiline_end_regexp)
         raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive"
@@ -78,6 +84,15 @@ module Fluent::Plugin
       end
       if @use_partial_metadata && @partial_key
         raise Fluent::ConfigError, "use_partial_metadata and partial_key are exclusive"
+      end
+      if @use_partial_cri_logtag && @n_lines
+        raise Fluent::ConfigError, "use_partial_cri_logtag and n_lines are exclusive"
+      end
+      if @use_partial_cri_logtag && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "use_partial_cri_logtag and multiline_start_regexp/multiline_end_regexp are exclusive"
+      end
+      if @use_partial_cri_logtag && @partial_key
+        raise Fluent::ConfigError, "use_partial_cri_logtag and partial_key are exclusive"
       end
 
       @mode = nil
@@ -110,6 +125,11 @@ module Fluent::Plugin
           @partial_last_field        = "container_partial_last".freeze
           @partial_message_indicator = @partial_id_field
         end
+      when @use_partial_cri_logtag
+        @mode = :partial_cri
+        @partial_logtag_delimiter = ":".freeze
+        @partial_logtag_continue = "P".freeze
+        @partial_logtag_full = "F".freeze
       when @multiline_start_regexp || @multiline_end_regexp
         @mode = :regexp
         if @multiline_start_regexp
@@ -175,6 +195,9 @@ module Fluent::Plugin
                   merged_record.delete(@partial_ordinal_field)
                   merged_record.delete(@partial_last_field)
                 end
+              when :partial_cri
+                merged_record.delete(@partial_cri_logtag_key) unless @keep_partial_key
+                merged_record.delete(@partial_cri_stream_key)
               end
               new_es.add(time, merged_record)
             end
@@ -220,6 +243,8 @@ module Fluent::Plugin
         process_partial(stream_identity, tag, time, record)
       when :partial_metadata
         process_partial_metadata(stream_identity, tag, time, record)
+      when :partial_cri
+        process_partial_cri(stream_identity, tag, time, record)
       when :regexp
         process_regexp(stream_identity, tag, time, record)
       end
@@ -243,6 +268,18 @@ module Fluent::Plugin
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
         new_record.delete(@partial_key)
+        new_es.add(time, new_record)
+      end
+      new_es
+    end
+
+    def process_partial_cri(stream_identity, tag, time, record)
+      new_es = Fluent::MultiEventStream.new
+      @buffer[stream_identity] << [tag, time, record]
+      if record[@partial_cri_logtag_key].split(@partial_logtag_delimiter)[0] == @partial_logtag_full
+        new_time, new_record = flush_buffer(stream_identity)
+        time = new_time if @use_first_timestamp
+        new_record.delete(@partial_cri_logtag_key)
         new_es.add(time, new_record)
       end
       new_es
