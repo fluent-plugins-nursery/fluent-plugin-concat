@@ -50,6 +50,9 @@ Or install it yourself as:
   #use_partial_metadata false
   #keep_partial_metadata false
   #partial\_metadata\_format docker-fluentd
+  #use\_partial\_cri\_logtag false
+  #partial\_cri\_logtag\_key nil
+  #partial\_cri\_stream\_key stream
 </filter>
 ```
 
@@ -73,6 +76,9 @@ Or install it yourself as:
 |use\_partial\_metadata|Use partial metadata to concatenate multiple records|`false`|
 |keep\_partial\_metadata|If true, keep partial metadata|`false`|
 |partial\_metadata\_format|Input format of the partial metadata (fluentd or journald docker log driver) ( `docker-fluentd`, `docker-journald`, `docker-journald-lowercase`)<br>Configure based on the input plugin, that is used. <br>The docker fluentd and journald log drivers are behaving differently, so the plugin needs to know, what to look for.<br>Use `docker-journald-lowercase`, if you have `fields_lowercase true` in the `journald` source config |`docker-fluentd`|
+|use\_partial\_cri\_logtag|bool (optional)|Use cri log tag to concatenate multiple records||
+|partial\_cri\_logtag\_key|string (optional)|The key name that is referred to concatenate records on cri log||
+|partial\_cri\_stream\_key|string (optional)|The key name that is referred to detect stream name on cri log|`stream`|
 
 ## Usage
 
