@@ -68,7 +68,7 @@ module Fluent::Plugin
       super
 
       params, names = required_params
-      if params.reject{|e| e == true}.empty?
+      if params.all?
         raise Fluent::ConfigError, "Either #{[names[0..-2].join(", "), names[-1]].join(" or ")} is required"
       end
       if @n_lines && (@multiline_start_regexp || @multiline_end_regexp)
