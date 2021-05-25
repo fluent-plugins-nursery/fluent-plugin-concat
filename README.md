@@ -196,7 +196,8 @@ Handle containerd/cri in Kubernetes.
   path /var/log/containers/*.log
   <parse>
     @type regexp
-    expression /^(?<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z) (?<output>\w+) (?<partial_flag>[FP]) (?<message>.+)$/
+    expression /^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<message>.*)$/
+    time_format %Y-%m-%dT%H:%M:%S.%L%z
   </parse>
   tag k8s
   @label @CONCAT
@@ -206,8 +207,9 @@ Handle containerd/cri in Kubernetes.
   <filter k8s>
     @type concat
     key message
-    partial_key partial_flag
-    partial_value P
+    use_partial_cri_logtag true
+    partial_cri_logtag_key logtag
+    partial_cri_stream_key stream
   </filter>
   <match k8s>
     @type relabel
