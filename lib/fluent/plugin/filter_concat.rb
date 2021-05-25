@@ -58,11 +58,18 @@ module Fluent::Plugin
       end
     end
 
+    def required_params
+      params = [@n_lines.nil?, @multiline_start_regexp.nil?, @multiline_end_regexp.nil?, @partial_key.nil?, !@use_partial_metadata, !@use_partial_cri_logtag]
+      names = ["n_lines", "multiline_start_regexp", "multiline_end_regexp", "partial_key", "use_partial_metadata", "use_partial_cri_logtag"]
+      return params, names
+    end
+
     def configure(conf)
       super
 
-      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil? && @partial_key.nil? && !@use_partial_metadata && !@use_partial_cri_logtag
-        raise Fluent::ConfigError, "Either n_lines, multiline_start_regexp, multiline_end_regexp, partial_key, use_partial_metadata or use_partial_cri_logtag is required"
+      params, names = required_params
+      if params.reject{|e| e == true}.empty?
+        raise Fluent::ConfigError, "Either #{[names[0..-2].join(", "), names[-1]].join(" or ")} is required"
       end
       if @n_lines && (@multiline_start_regexp || @multiline_end_regexp)
         raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive"
