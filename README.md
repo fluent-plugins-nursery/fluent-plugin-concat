@@ -58,27 +58,27 @@ Or install it yourself as:
 
 ### Parameter
 
-|parameter|description|default|
-|---|---|---|
-|key|The key for part of multiline log||
-|separator|The separator of lines|`"\n"`|
-|n\_lines|The number of lines. This is exclusive with `multiline_start_regex`|nil|
-|multiline\_start\_regexp|The regexp to match beginning of multiline. This is exclusive with `n_lines`|nil|
-|multiline\_end\_regexp|The regexp to match ending of multiline.This is exclusive with `n_lines`|nil|
-|continuous\_line\_regexp|The regexp to match continuous lines.This is exclusive with `n_lines`|nil|
-|stream\_identity\_key|The key to determine which stream an event belongs to|nil|
-|flush\_interval|The number of seconds after which the last received event log will be flushed.If specified 0, wait for next line foreverr|60|
-|timeout\_label|The label name to handle events caused by timeout|nil|
-|use\_first\_timestamp|Use timestamp of first record when buffer is flushed|`false`|
-|partial\_key|The field name that is the reference to concatenate records|nil|
-|partial\_value|The value stored in the field specified by partial_key that represent partial log|nil|
-|keep\_partial\_key|If true, keep partial_key in concatenated records|`false`|
-|use\_partial\_metadata|Use partial metadata to concatenate multiple records|`false`|
-|keep\_partial\_metadata|If true, keep partial metadata|`false`|
-|partial\_metadata\_format|Input format of the partial metadata (fluentd or journald docker log driver) ( `docker-fluentd`, `docker-journald`, `docker-journald-lowercase`)<br>Configure based on the input plugin, that is used. <br>The docker fluentd and journald log drivers are behaving differently, so the plugin needs to know, what to look for.<br>Use `docker-journald-lowercase`, if you have `fields_lowercase true` in the `journald` source config |`docker-fluentd`|
-|use\_partial\_cri\_logtag|bool (optional)|Use cri log tag to concatenate multiple records||
-|partial\_cri\_logtag\_key|string (optional)|The key name that is referred to concatenate records on cri log||
-|partial\_cri\_stream\_key|string (optional)|The key name that is referred to detect stream name on cri log|`stream`|
+|parameter|description|type|default|
+|---|---|---|---|
+|key|The key for part of multiline log|string|
+|separator|The separator of lines|string|`"\n"`|
+|n\_lines|The number of lines. This is exclusive with `multiline_start_regex`|integer|nil|
+|multiline\_start\_regexp|The regexp to match beginning of multiline. This is exclusive with `n_lines`|string|nil|
+|multiline\_end\_regexp|The regexp to match ending of multiline.This is exclusive with `n_lines`|string|nil|
+|continuous\_line\_regexp|The regexp to match continuous lines.This is exclusive with `n_lines`|string|nil|
+|stream\_identity\_key|The key to determine which stream an event belongs to|string|nil|
+|flush\_interval|The number of seconds after which the last received event log will be flushed.If specified 0, wait for next line foreverr|time|`60`|
+|timeout\_label|The label name to handle events caused by timeout|string|nil|
+|use\_first\_timestamp|Use timestamp of first record when buffer is flushed|boolean|`false`|
+|partial\_key|The field name that is the reference to concatenate records|string|nil|
+|partial\_value|The value stored in the field specified by partial_key that represent partial log|string|nil|
+|keep\_partial\_key|If true, keep partial_key in concatenated records|boolean|`false`|
+|use\_partial\_metadata|Use partial metadata to concatenate multiple records|boolean|`false`|
+|keep\_partial\_metadata|If true, keep partial metadata|boolean|`false`|
+|partial\_metadata\_format|Input format of the partial metadata (fluentd or journald docker log driver) ( `docker-fluentd`, `docker-journald`, `docker-journald-lowercase`)<br>Configure based on the input plugin, that is used. <br>The docker fluentd and journald log drivers are behaving differently, so the plugin needs to know, what to look for.<br>Use `docker-journald-lowercase`, if you have `fields_lowercase true` in the `journald` source config |string|`docker-fluentd`|
+|use\_partial\_cri\_logtag|Use cri log tag to concatenate multiple records|boolean|`false`|
+|partial\_cri\_logtag\_key|The key name that is referred to concatenate records on cri log|string|nil
+|partial\_cri\_stream\_key|The key name that is referred to detect stream name on cri log|string|`stream`|
 
 ## Usage
 
