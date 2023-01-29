@@ -67,7 +67,7 @@ Or install it yourself as:
 |multiline\_end\_regexp|The regexp to match ending of multiline.This is exclusive with `n_lines`|nil|
 |continuous\_line\_regexp|The regexp to match continuous lines.This is exclusive with `n_lines`|nil|
 |stream\_identity\_key|The key to determine which stream an event belongs to|nil|
-|flush\_interval|The number of seconds after which the last received event log will be flushed.If specified 0, wait for next line foreverr|60|
+|flush\_interval|The number of seconds after which the last received event log will be flushed.If specified 0, wait for next line forever|60|
 |timeout\_label|The label name to handle events caused by timeout|nil|
 |use\_first\_timestamp|Use timestamp of first record when buffer is flushed|`false`|
 |partial\_key|The field name that is the reference to concatenate records|nil|
