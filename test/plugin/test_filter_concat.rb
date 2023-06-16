@@ -1,9 +1,4 @@
-require "bundler/setup"
-require "test-unit"
-require "test/unit/rr"
-require "fluent/test"
-require "fluent/plugin/filter_concat"
-
+require "helper"
 require "fluent/test/driver/filter"
 class FilterConcatTest < Test::Unit::TestCase
   def setup
@@ -39,7 +34,10 @@ class FilterConcatTest < Test::Unit::TestCase
     d.run(default_tag: "test") do
       sleep 0.1 # run event loop
       messages.each do |time, message|
-        sleep time-time_event_now
+        now = time_event_now
+        if now < time
+          sleep time-now
+        end
         d.feed(time, message)
       end
       sleep wait if wait
@@ -260,7 +258,7 @@ class FilterConcatTest < Test::Unit::TestCase
         flush_interval 1s
         timeout_label @TIMEOUT
       CONFIG
-      wait = 8
+      wait = 3
       delay_message_4_to_5 = 3
       delay_message_5_to_6 = 1
 
@@ -278,6 +276,8 @@ class FilterConcatTest < Test::Unit::TestCase
         event_router = mock(Object.new).emit("test", anything, errored)
         mock(Fluent::Test::Driver::TestEventRouter).new(anything) { event_router }
         stub.proxy(d.instance).flush_timeout_buffer.times(wait + delay_message_4_to_5 + delay_message_5_to_6)
+        stub.proxy(d.instance).handle_timeout_error.times(1)
+
       end
       expected = [
         [@time, { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }],

@@ -388,7 +388,7 @@ module Fluent::Plugin
     end
 
     def flush_timeout_buffer
-      now =time_event_now
+      now = time_event_now
       timeout_stream_identities = []
       @timeout_map_mutex.synchronize do
         @timeout_map.each do |stream_identity, previous_timestamp|
