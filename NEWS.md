@@ -6,6 +6,12 @@
 
 * adds `partial_metadata_format` to support Docker 20.10 journald log driver improvements [moby/moby#41407](https://github.com/moby/moby/pull/41407) 
 
+## v2.6.0
+
+### Improvements
+
+* Support `buffer_limit_size`, `buffer_overflow_method` to change behavior when buffer overflow. See #68
+
 ## v2.3.0
 
 ### Improvements
