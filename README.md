@@ -27,6 +27,13 @@ Or install it yourself as:
 
     $ gem install fluent-plugin-concat
 
+## Plugin helpers
+
+* [timer](https://docs.fluentd.org/v1.0/articles/api-plugin-helper-timer)
+* [event_emitter](https://docs.fluentd.org/v1.0/articles/api-plugin-helper-event_emitter)
+
+* See also: [Filter Plugin Overview](https://docs.fluentd.org/filter#overview)
+
 ## Configuration
 
 ### Example
@@ -79,6 +86,20 @@ Or install it yourself as:
 |use\_partial\_cri\_logtag|bool (optional)|Use cri log tag to concatenate multiple records||
 |partial\_cri\_logtag\_key|string (optional)|The key name that is referred to concatenate records on cri log||
 |partial\_cri\_stream\_key|string (optional)|The key name that is referred to detect stream name on cri log|`stream`|
+|buffer\_limit\_size|The max size of each buffer|`512000`|
+
+|parameter|description|available values|default|
+|---|---|---|---|
+|buffer\_overflow\_method|The method if overflow buffer|`ignore`, `truncate`, `drop`, `new`|`ignore`|
+
+* `ignore`
+  * Concatenate the current record in the buffer
+* `truncate`
+  * Drop the current record and flush the buffer
+* `drop`
+  * Drop the current record and clear the buffer
+* `new`
+  * Flush the buffer and store the current record in next buffer
 
 ## Usage
 
