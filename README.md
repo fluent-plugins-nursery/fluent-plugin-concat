@@ -32,7 +32,7 @@ Or install it yourself as:
 * [timer](https://docs.fluentd.org/v1.0/articles/api-plugin-helper-timer)
 * [event_emitter](https://docs.fluentd.org/v1.0/articles/api-plugin-helper-event_emitter)
 
-* See also: [Filter Plugin Overview](https://docs.fluentd.org/v1.0/articles/filter-plugin-overview)
+* See also: [Filter Plugin Overview](https://docs.fluentd.org/filter#overview)
 
 ## Configuration
 
