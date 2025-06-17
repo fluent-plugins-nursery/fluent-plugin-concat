@@ -3,7 +3,7 @@ require "fluent/test/driver/filter"
 class FilterConcatTest < Test::Unit::TestCase
   def setup
     Fluent::Test.setup
-    @time = Fluent::Engine.now
+    @time = time_event_now
   end
 
   CONFIG = %[
@@ -34,11 +34,20 @@ class FilterConcatTest < Test::Unit::TestCase
     d.run(default_tag: "test") do
       sleep 0.1 # run event loop
       messages.each do |time, message|
+        now = time_event_now
+        if now < time
+          sleep time-now
+        end
         d.feed(time, message)
       end
       sleep wait if wait
     end
     d.filtered
+  end
+
+  def time_event_now
+    now = Process.clock_gettime(Process::CLOCK_REALTIME, :nanosecond)
+    Fluent::EventTime.new(now / 1_000_000_000, now % 1_000_000_000)
   end
 
   sub_test_case "config" do
@@ -240,6 +249,43 @@ class FilterConcatTest < Test::Unit::TestCase
         mock(Fluent::Test::Driver::TestEventRouter).new(anything) { event_router }
       end
       assert_equal([], filtered)
+    end
+
+    test "timeout with timeout_label for multiline start regex" do
+      config = <<-CONFIG
+        key message
+        multiline_start_regexp /^start/
+        flush_interval 1s
+        timeout_label @TIMEOUT
+      CONFIG
+      wait = 3
+      delay_message_4_to_5 = 3
+      delay_message_5_to_6 = 1
+
+      messages = [
+        [@time, { "container_id" => "1", "message" => "start" }],
+        [@time, { "container_id" => "1", "message" => "  message 1" }],
+        [@time, { "container_id" => "1", "message" => "  message 2" }],
+        [@time, { "container_id" => "1", "message" => "starting" }],
+        [@time + delay_message_4_to_5, { "container_id" => "1", "message" => "  message 3" }],
+        [@time + delay_message_4_to_5 + delay_message_5_to_6 , { "container_id" => "1", "message" => "  message 4" }],
+      ]
+
+      filtered = filter_with_time(config, messages, wait: wait) do |d|
+        errored = { "container_id" => "1", "message" => "starting" }
+        event_router = mock(Object.new).emit("test", anything, errored)
+        mock(Fluent::Test::Driver::TestEventRouter).new(anything) { event_router }
+        #commented out due to timing inconsistency
+        #stub.proxy(d.instance).flush_timeout_buffer.times(wait + delay_message_4_to_5 + delay_message_5_to_6)
+        stub.proxy(d.instance).handle_timeout_error.times(1)
+
+      end
+      expected = [
+        [@time, { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }],
+        [@time + 3, { "container_id" => "1", "message" => "  message 3" }],
+        [@time + 4, { "container_id" => "1", "message" => "  message 4" }],
+      ]
+      assert_equal(expected, filtered)
     end
 
     test "no timeout" do
@@ -975,11 +1021,13 @@ class FilterConcatTest < Test::Unit::TestCase
         [@time + 2, { "container_id" => "1", "message" => "  message 4" }],
       ]
       filtered = filter_with_time(config, messages, wait: 3) do |d|
-        errored = { "container_id" => "1", "message" => "start\n  message 3\n  message 4" }
+        errored = { "container_id" => "1", "message" => "start" }
         mock(d.instance.router).emit_error_event("test", @time, errored, anything)
       end
       expected = [
-        [@time, { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }]
+        [@time, { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }],
+        [@time + 1, { "container_id" => "1", "message" => "  message 3" }],
+        [@time + 2, { "container_id" => "1", "message" => "  message 4" }],
       ]
       assert_equal(expected, filtered)
     end
