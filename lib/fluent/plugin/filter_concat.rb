@@ -54,12 +54,11 @@ module Fluent::Plugin
 
     def initialize
       super
-
       @buffer = Hash.new {|h, k| h[k] = [] }
       @buffer_size = Hash.new(0)
       @timeout_map_mutex = Thread::Mutex.new
       @timeout_map_mutex.synchronize do
-        @timeout_map = Hash.new {|h, k| h[k] = Fluent::Engine.now }
+        @timeout_map = Hash.new {|h, k| h[k] = time_event_now }
       end
     end
 
@@ -246,7 +245,7 @@ module Fluent::Plugin
         end
       end
       @timeout_map_mutex.synchronize do
-        @timeout_map[stream_identity] = Fluent::Engine.now
+        @timeout_map[stream_identity] = time_event_now
       end
       case @mode
       when :line
@@ -432,7 +431,7 @@ module Fluent::Plugin
     end
 
     def flush_timeout_buffer
-      now = Fluent::Engine.now
+      now = time_event_now
       timeout_stream_identities = []
       @timeout_map_mutex.synchronize do
         @timeout_map.each do |stream_identity, previous_timestamp|
@@ -475,6 +474,12 @@ module Fluent::Plugin
         router.emit_error_event(tag, time, record, TimeoutError.new(message))
       end
     end
+
+    def time_event_now
+      now = Process.clock_gettime(Process::CLOCK_REALTIME, :nanosecond)
+      Fluent::EventTime.new(now / 1_000_000_000, now % 1_000_000_000)
+    end
+
   end
 end
 
