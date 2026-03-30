@@ -1186,5 +1186,29 @@ class FilterConcatTest < Test::Unit::TestCase
       ]
       assert_equal(expected, filtered)
     end
+
+    test "non-string values" do
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+        keep_partial_key false
+        buffer_limit_size 120
+        buffer_overflow_method new
+      CONFIG
+      messages = [
+        { "container_id" => "1", "message" => "start", "partial_message" => "true", "other" => 1 },
+        { "container_id" => "1", "message" => " message 1", "partial_message" => "true", "other" => [1, 2, 3] },
+        { "container_id" => "1", "message" => " message 2", "partial_message" => "true" , "other" => { "key" => "value" } },
+        { "container_id" => "1", "message" => "end", "partial_message" => "false", "other" => true },
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        { "container_id" => "1", "message" => "start\n message 1", "other" => 1 },
+        { "container_id" => "1", "message" => " message 2", "other" => { "key" => "value" } },
+        { "container_id" => "1", "message" => "end", "other" => true },
+      ]
+      assert_equal(expected, filtered)
+    end
   end
 end
