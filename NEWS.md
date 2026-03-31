@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v2.6.1
+
+### Fixes
+
+* Fix NoMethodError when calculating bytesize of non-string record values. See #136
+
 ## v2.6.0
 
 ### Improvements
