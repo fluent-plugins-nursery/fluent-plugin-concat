@@ -300,7 +300,7 @@ module Fluent::Plugin
       end
       if force_flush && @buffer_overflow_method == :new
         @buffer[stream_identity] << [tag, time, record]
-        @buffer_size[stream_identity] = record.keys.sum(&:bytesize) + record.values.sum(&:bytesize)
+        @buffer_size[stream_identity] = record_bytesize(record)
         if @partial_value != record[@partial_key]
           new_time, new_record = flush_buffer(stream_identity)
           time = new_time if @use_first_timestamp
@@ -403,7 +403,7 @@ module Fluent::Plugin
     end
 
     def overflow?(stream_identity, record)
-      size = record.keys.sum(&:bytesize) + record.values.sum(&:bytesize)
+      size = record_bytesize(record)
       if @buffer_size[stream_identity] + size > @buffer_limit_size
         @buffer_size[stream_identity] = 0
         true
@@ -474,6 +474,10 @@ module Fluent::Plugin
       else
         router.emit_error_event(tag, time, record, TimeoutError.new(message))
       end
+    end
+
+    def record_bytesize(record)
+      record.keys.sum(&:bytesize) + record.values.sum { |v| v.to_s.bytesize }
     end
   end
 end
