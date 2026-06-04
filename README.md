@@ -1,6 +1,7 @@
 # fluent-plugin-concat
 
-[![Build Status](https://travis-ci.org/fluent-plugins-nursery/fluent-plugin-concat.svg?branch=master)](https://travis-ci.org/fluent-plugins-nursery/fluent-plugin-concat)
+[![Testing on Ubuntu](https://github.com/fluent-plugins-nursery/fluent-plugin-concat/actions/workflows/linux.yml/badge.svg)](https://github.com/fluent-plugins-nursery/fluent-plugin-concat/actions/workflows/linux.yml)
+[![Testing on Windows](https://github.com/fluent-plugins-nursery/fluent-plugin-concat/actions/workflows/windows.yml/badge.svg)](https://github.com/fluent-plugins-nursery/fluent-plugin-concat/actions/workflows/windows.yml)
 
 Fluentd Filter plugin to concatenate multiline log separated in multiple events.
 
