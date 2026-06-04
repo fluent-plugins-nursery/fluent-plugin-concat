@@ -124,18 +124,26 @@ Specify first line of multiline by regular expression.
 </filter>
 ```
 
-You can handle timeout events and remaining buffers on shutdown this plugin.
+If you want to intentionally separate timeout logs or handle remaining buffers on plugin shutdown, you can use the `timeout_label` option to route them to a specific label.
 
 ```aconf
-<label @ERROR>
+<filter docker.log>
+  @type concat
+  key message
+  multiline_start_regexp /^Start/
+  flush_interval 5
+  timeout_label @TIMEOUT_HANDLER
+</filter>
+
+<label @TIMEOUT_HANDLER>
   <match docker.log>
     @type file
-    path /path/to/error.log
+    path /path/to/timeout_and_shutdown.log
   </match>
 </label>
 ```
 
-Handle timeout log lines the same as normal logs.
+By default, when a timeout occurs while waiting for the next multiline log, the plugin outputs an info log and emits the buffered logs normally to the next pipeline. You don't need any special configuration to keep your last log lines.
 
 ```aconf
 <filter **>
@@ -143,19 +151,7 @@ Handle timeout log lines the same as normal logs.
   key message
   multiline_start_regexp /^Start/
   flush_interval 5
-  timeout_label @NORMAL
 </filter>
-
-<match **>
-  @type relabel
-  @label @NORMAL
-</match>
-
-<label @NORMAL>
-  <match **>
-    @type stdout
-  </match>
-</label>
 ```
 
 Handle single line JSON from Docker containers.

@@ -460,19 +460,19 @@ module Fluent::Plugin
           @key => lines.join(@separator)
         }
         tag, time, record = elements.first
-        message = "Flush remaining buffer: #{stream_identity}"
-        handle_timeout_error(tag, time, record.merge(new_record), message)
-        log.info(message)
+        handle_timeout_error(tag, time, record.merge(new_record))
+        log.info("Flush remaining buffer: #{stream_identity}")
       end
       @buffer.clear
     end
 
-    def handle_timeout_error(tag, time, record, message)
+    def handle_timeout_error(tag, time, record)
       if @timeout_label
         event_router = event_emitter_router(@timeout_label)
         event_router.emit(tag, time, record)
       else
-        router.emit_error_event(tag, time, record, TimeoutError.new(message))
+        log.info "Timeout occurred while waiting for the next multiline log. Emitting the buffered log normally. tag: #{tag}"
+        router.emit(tag, time, record)
       end
     end
 

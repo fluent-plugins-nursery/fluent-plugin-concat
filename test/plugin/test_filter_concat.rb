@@ -224,7 +224,7 @@ class FilterConcatTest < Test::Unit::TestCase
       ]
       filtered = filter(CONFIG + "flush_interval 2s", messages, wait: 3) do |d|
         errored = { "container_id" => "1", "message" => "message 1\nmessage 2" }
-        mock(d.instance.router).emit_error_event("test", anything, errored, anything)
+        mock(d.instance.router).emit("test", anything, errored)
       end
       assert_equal([], filtered)
     end
@@ -307,8 +307,8 @@ class FilterConcatTest < Test::Unit::TestCase
         errored1 = { "container_id" => "1", "message" => "start" }
         errored2 = { "container_id" => "2", "message" => "start" }
         router = d.instance.router
-        mock(router).emit_error_event("test", anything, errored1, anything)
-        mock(router).emit_error_event("test", anything, errored2, anything)
+        mock(router).emit("test", anything, errored1)
+        mock(router).emit("test", anything, errored2)
       end
       assert_equal(expected, filtered)
     end
@@ -456,7 +456,7 @@ class FilterConcatTest < Test::Unit::TestCase
       ]
       filtered = filter(config, messages, wait: 3) do |d|
         errored = { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }
-        mock(d.instance.router).emit_error_event("test", anything, errored, anything)
+        mock(d.instance.router).emit("test", anything, errored)
       end
       assert_equal([], filtered)
     end
@@ -976,7 +976,7 @@ class FilterConcatTest < Test::Unit::TestCase
       ]
       filtered = filter_with_time(config, messages, wait: 3) do |d|
         errored = { "container_id" => "1", "message" => "start\n  message 3\n  message 4" }
-        mock(d.instance.router).emit_error_event("test", @time, errored, anything)
+        mock(d.instance.router).emit("test", @time, errored)
       end
       expected = [
         [@time, { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }]
@@ -1000,7 +1000,7 @@ class FilterConcatTest < Test::Unit::TestCase
       filtered = filter_with_time(config, messages, wait: 3) do |d|
         mock(d.instance).flush_timeout_buffer.at_most(0)
         errored = { "container_id" => "1", "message" => "start" }
-        mock(d.instance.router).emit_error_event("test", @time, errored, anything)
+        mock(d.instance.router).emit("test", @time, errored)
       end
       expected = [
         [@time, { "container_id" => "1", "message" => "start\n  message 1\n  message 2" }]
@@ -1060,6 +1060,7 @@ class FilterConcatTest < Test::Unit::TestCase
         "[error]: failed to flush timeout buffer error_class=StandardError error=\"timeout\"",
         "[error]: failed to flush timeout buffer error_class=StandardError error=\"timeout\"",
         "[error]: failed to flush timeout buffer error_class=StandardError error=\"timeout\"",
+        "[info]: Timeout occurred while waiting for the next multiline log. Emitting the buffered log normally. tag: test",
         "[info]: Flush remaining buffer: test:default"
       ]
       log_messages = logs.map do |line|
