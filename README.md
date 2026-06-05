@@ -124,40 +124,6 @@ Specify first line of multiline by regular expression.
 </filter>
 ```
 
-You can handle timeout events and remaining buffers on shutdown this plugin.
-
-```aconf
-<label @ERROR>
-  <match docker.log>
-    @type file
-    path /path/to/error.log
-  </match>
-</label>
-```
-
-Handle timeout log lines the same as normal logs.
-
-```aconf
-<filter **>
-  @type concat
-  key message
-  multiline_start_regexp /^Start/
-  flush_interval 5
-  timeout_label @NORMAL
-</filter>
-
-<match **>
-  @type relabel
-  @label @NORMAL
-</match>
-
-<label @NORMAL>
-  <match **>
-    @type stdout
-  </match>
-</label>
-```
-
 Handle single line JSON from Docker containers.
 
 ```aconf
@@ -247,6 +213,40 @@ Handle containerd/cri in Kubernetes.
 
 <label @OUTPUT>
   <match>
+    @type stdout
+  </match>
+</label>
+```
+
+### Timeout Handling and Preventing Log Loss
+
+When a multiline log is incomplete and reaches the `flush_interval`, the plugin flushes the remaining buffer. **These timeout events are routed to the `@ERROR` label by default**.
+
+**If you do not explicitly handle these timeout events, your last log lines will be silently dropped.**
+
+To prevent data loss and handle timeout logs the same as normal logs, you **must** configure `timeout_label` and set up a corresponding `<label>` block to catch and route them properly.
+
+#### Example: Safely rescuing timeout logs
+
+```aconf
+<filter **>
+  @type concat
+  key message
+  multiline_start_regexp /^Start/
+  flush_interval 5
+  # 1. Route timeout events to a specific label
+  timeout_label @NORMAL 
+</filter>
+
+# 2. Route normal events to the same label
+<match **>
+  @type relabel
+  @label @NORMAL
+</match>
+
+# 3. Handle both normal and timeout events together
+<label @NORMAL>
+  <match **>
     @type stdout
   </match>
 </label>
