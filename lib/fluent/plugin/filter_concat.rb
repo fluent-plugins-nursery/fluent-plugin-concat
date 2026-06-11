@@ -433,20 +433,27 @@ module Fluent::Plugin
 
     def flush_timeout_buffer
       now = Fluent::Engine.now
-      timeout_stream_identities = []
+      expired_stream_identities = []
       @timeout_map_mutex.synchronize do
         @timeout_map.each do |stream_identity, previous_timestamp|
           next if @flush_interval > (now - previous_timestamp)
+          expired_stream_identities << stream_identity
           next if @buffer[stream_identity].empty?
           time, flushed_record = flush_buffer(stream_identity)
-          timeout_stream_identities << stream_identity
           tag = stream_identity.split(":").first
           message = "Timeout flush: #{stream_identity}"
           handle_timeout_error(tag, @use_first_timestamp ? time : now, flushed_record, message)
           log.info(message)
         end
-        @timeout_map.reject! do |stream_identity, _|
-          timeout_stream_identities.include?(stream_identity)
+        # Purge expired streams from all the state hashes, not only the
+        # flushed ones. Streams which completed normally leave empty entries
+        # behind, so @buffer/@buffer_size/@timeout_map would otherwise grow
+        # unboundedly (notably in partial metadata mode where every split
+        # message has a unique stream identity).
+        expired_stream_identities.each do |stream_identity|
+          @timeout_map.delete(stream_identity)
+          @buffer.delete(stream_identity)
+          @buffer_size.delete(stream_identity)
         end
       end
     end
