@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v2.6.2
+
+### Fixes
+
+* Fix unbounded growth of stream state in timeout handling (#150)
+* docs: clarify timeout handling to prevent silent log loss
+
 ## v2.6.1
 
 ### Fixes
