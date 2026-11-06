@@ -217,6 +217,24 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
+    test "stream identity with colons in the tag and the identity value" do
+      d = create_driver(%[
+        key message
+        n_lines 2
+        stream_identity_key container_id
+      ])
+      d.run do
+        sleep 0.1 # run event loop
+        d.feed("app:web", @time, { "container_id" => "1", "message" => "from app:web" })
+        d.feed("app", @time, { "container_id" => "web:1", "message" => "from app" })
+        d.feed("app:web", @time, { "container_id" => "1", "message" => "again from app:web" })
+      end
+      expected = [
+        { "container_id" => "1", "message" => "from app:web\nagain from app:web" },
+      ]
+      assert_equal(expected, d.filtered_records)
+    end
+
     test "timeout" do
       messages = [
         { "container_id" => "1", "message" => "message 1" },
@@ -1188,9 +1206,9 @@ class FilterConcatTest < Test::Unit::TestCase
       CONFIG
       messages = [partial_messages("partial1").first]
       d, state = run_and_snapshot_state(config, messages, advance: 2)
-      assert_equal(["test:partial1"], state[:buffer].keys)
-      assert_equal(1, state[:buffer]["test:partial1"].size)
-      assert_equal(["test:partial1"], state[:timeout_map].keys)
+      assert_equal([["test", "partial1"]], state[:buffer].keys)
+      assert_equal(1, state[:buffer][["test", "partial1"]].size)
+      assert_equal([["test", "partial1"]], state[:timeout_map].keys)
     end
   end
 
