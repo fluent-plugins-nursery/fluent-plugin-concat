@@ -435,6 +435,16 @@ module Fluent::Plugin
       elements.map {|_tag, _time, record| record[@key] }
     end
 
+    # Same as buffered_lines, but never raises. At shutdown every buffered
+    # stream must still be flushed, so when the ordinals cannot be sorted
+    # (for example an ordinal that does not respond to to_i) the parts are
+    # joined in the order they arrived.
+    def shutdown_buffered_lines(elements)
+      buffered_lines(elements)
+    rescue StandardError
+      elements.map {|_tag, _time, record| record[@key] }
+    end
+
     def flush_timeout_buffer
       now = Fluent::Engine.now
       expired_stream_identities = []
@@ -466,7 +476,7 @@ module Fluent::Plugin
       @buffer.each do |stream_identity, elements|
         next if elements.empty?
 
-        lines = buffered_lines(elements)
+        lines = shutdown_buffered_lines(elements)
         new_record = {
           @key => lines.join(@separator)
         }
