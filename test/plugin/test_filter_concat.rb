@@ -951,6 +951,86 @@ class FilterConcatTest < Test::Unit::TestCase
       ]
       assert_equal(expected, filtered)
     end
+
+    data("docker-fluentd format" => ["docker-fluentd",
+                                     "partial_message", "partial_id",
+                                     "partial_ordinal", "partial_last"],
+         "docker-journald format" => ["docker-journald",
+                                      "CONTAINER_PARTIAL_MESSAGE", "CONTAINER_PARTIAL_ID",
+                                      "CONTAINER_PARTIAL_ORDINAL", "CONTAINER_PARTIAL_LAST"],
+         "docker-journald-lowercase format" => ["docker-journald-lowercase",
+                                                "container_partial_message", "container_partial_id",
+                                                "container_partial_ordinal", "container_partial_last"],
+        )
+    test "unsorted, flushed at shutdown" do |data|
+      partial_metadata_format, partial_message_key, partial_id_key, partial_ordinal_key, partial_last_key = data
+      config = <<-CONFIG
+        key message
+        use_partial_metadata true
+        partial_metadata_format #{partial_metadata_format}
+      CONFIG
+      messages = [
+        {
+          "container_id" => "1",
+          "message" => "second",
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "2",
+          partial_last_key => "false"
+        },
+        {
+          "container_id" => "1",
+          "message" => "first",
+          partial_message_key => "true",
+          partial_id_key => "partial1",
+          partial_ordinal_key => "1",
+          partial_last_key => "false"
+        },
+      ]
+      # The last part never arrives, so the parts are flushed when the filter shuts down.
+      d = create_driver(config)
+      d.run(default_tag: "test") do
+        sleep 0.1 # run event loop
+        messages.each do |message|
+          d.feed(@time, message)
+        end
+      end
+      assert_equal([], d.filtered_records)
+      assert_equal(["first\nsecond"], d.error_events.map {|_tag, _time, record, _error| record["message"] })
+    end
+
+    test "unconvertible ordinal, every stream is still flushed at shutdown" do
+      config = <<-CONFIG
+        key message
+        use_partial_metadata true
+      CONFIG
+      messages = [
+        {
+          "message" => "bad",
+          "partial_message" => "true",
+          "partial_id" => "p1",
+          "partial_ordinal" => true,
+          "partial_last" => "false"
+        },
+        {
+          "message" => "good",
+          "partial_message" => "true",
+          "partial_id" => "p2",
+          "partial_ordinal" => "1",
+          "partial_last" => "false"
+        },
+      ]
+      d = create_driver(config)
+      d.run(default_tag: "test") do
+        sleep 0.1 # run event loop
+        messages.each do |message|
+          d.feed(@time, message)
+        end
+      end
+      assert_equal([], d.filtered_records)
+      assert_equal(["bad", "good"],
+                   d.error_events.map {|_tag, _time, record, _error| record["message"] }.sort)
+    end
   end
 
   sub_test_case "use first timestamp" do

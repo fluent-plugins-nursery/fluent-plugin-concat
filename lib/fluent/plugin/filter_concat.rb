@@ -414,13 +414,7 @@ module Fluent::Plugin
     end
 
     def flush_buffer(stream_identity, new_element = nil)
-      lines = if @mode == :partial_metadata
-                @buffer[stream_identity]
-                  .sort_by {|_tag, _time, record| record[@partial_ordinal_field].to_i }
-                  .map {|_tag, _time, record| record[@key] }
-              else
-                @buffer[stream_identity].map {|_tag, _time, record| record[@key] }
-              end
+      lines = buffered_lines(@buffer[stream_identity])
       _tag, time, first_record = @buffer[stream_identity].first
       new_record = {
         @key => lines.join(@separator)
@@ -429,6 +423,26 @@ module Fluent::Plugin
       @buffer[stream_identity] << new_element if new_element
       @buffer_size[stream_identity] = 0
       [time, first_record.merge(new_record)]
+    end
+
+    # The lines of the buffered events, in the order they are joined.
+    # With partial metadata the parts can arrive out of order, so they are
+    # sorted by their ordinal.
+    def buffered_lines(elements)
+      if @mode == :partial_metadata
+        elements = elements.sort_by {|_tag, _time, record| record[@partial_ordinal_field].to_i }
+      end
+      elements.map {|_tag, _time, record| record[@key] }
+    end
+
+    # Same as buffered_lines, but never raises. At shutdown every buffered
+    # stream must still be flushed, so when the ordinals cannot be sorted
+    # (for example an ordinal that does not respond to to_i) the parts are
+    # joined in the order they arrived.
+    def shutdown_buffered_lines(elements)
+      buffered_lines(elements)
+    rescue StandardError
+      elements.map {|_tag, _time, record| record[@key] }
     end
 
     def flush_timeout_buffer
@@ -462,7 +476,7 @@ module Fluent::Plugin
       @buffer.each do |stream_identity, elements|
         next if elements.empty?
 
-        lines = elements.map {|_tag, _time, record| record[@key] }
+        lines = shutdown_buffered_lines(elements)
         new_record = {
           @key => lines.join(@separator)
         }
