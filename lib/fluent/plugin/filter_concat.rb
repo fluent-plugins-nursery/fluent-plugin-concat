@@ -439,8 +439,8 @@ module Fluent::Plugin
           next if @flush_interval > (now - previous_timestamp)
           expired_stream_identities << stream_identity
           next if @buffer[stream_identity].empty?
+          tag = @buffer[stream_identity].first[0]
           time, flushed_record = flush_buffer(stream_identity)
-          tag = stream_identity.split(":").first
           message = "Timeout flush: #{stream_identity}"
           handle_timeout_error(tag, @use_first_timestamp ? time : now, flushed_record, message)
           log.info(message)

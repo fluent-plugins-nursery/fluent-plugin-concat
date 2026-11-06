@@ -242,6 +242,29 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal([], filtered)
     end
 
+    test "timeout with a tag containing colons" do
+      tag = "C:/temp/foo.log"
+      d = create_driver(CONFIG + "flush_interval 2s")
+      errored = []
+      stub(d.instance.router).emit_error_event do |error_tag, _time, record, _error|
+        errored << [error_tag, record]
+      end
+      d.run(default_tag: tag) do
+        sleep 0.1 # run event loop
+        d.feed(@time, { "container_id" => "1", "message" => "message 1" })
+        d.feed(@time, { "container_id" => "1", "message" => "message 2" })
+        # Fluent::Test.setup freezes Fluent::Engine.now, so advance it and
+        # wait for the next tick of the timer to flush by timeout.
+        Fluent::Engine.now = Fluent::EventTime.new(@time.sec + 3, @time.nsec)
+        sleep 2
+      end
+      expected = [[tag, { "container_id" => "1", "message" => "message 1\nmessage 2" }]]
+      assert_equal(expected, errored)
+      assert(d.logs.any? {|line| line.include?("Timeout flush: #{tag}:default") })
+    ensure
+      Fluent::Engine.now = @time
+    end
+
     test "no timeout" do
       messages = [
         { "container_id" => "1", "message" => "message 1" },
