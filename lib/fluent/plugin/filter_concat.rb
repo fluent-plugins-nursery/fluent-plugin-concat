@@ -232,17 +232,20 @@ module Fluent::Plugin
     end
 
     def process(tag, time, record)
+      # The key holds frozen copies, so a later change to the event's
+      # Strings cannot change a key that is already stored.
+      key_tag = tag.dup.freeze
       if @mode == :partial_metadata
         if @stream_identity_key
-          stream_identity = [tag, %Q(#{record[@stream_identity_key]}#{record[@partial_id_field]})]
+          stream_identity = [key_tag, %Q(#{record[@stream_identity_key]}#{record[@partial_id_field]}).freeze]
         else
-          stream_identity = [tag, record[@partial_id_field].to_s]
+          stream_identity = [key_tag, record[@partial_id_field].to_s.dup.freeze]
         end
       else
         if @stream_identity_key
-          stream_identity = [tag, record[@stream_identity_key].to_s]
+          stream_identity = [key_tag, record[@stream_identity_key].to_s.dup.freeze]
         else
-          stream_identity = [tag, "default"]
+          stream_identity = [key_tag, "default"]
         end
       end
       @timeout_map_mutex.synchronize do
@@ -441,7 +444,7 @@ module Fluent::Plugin
           next if @buffer[stream_identity].empty?
           tag = @buffer[stream_identity].first[0]
           time, flushed_record = flush_buffer(stream_identity)
-          message = "Timeout flush: #{stream_identity.join(":")}"
+          message = "Timeout flush: #{stream_identity_label(stream_identity)}"
           handle_timeout_error(tag, @use_first_timestamp ? time : now, flushed_record, message)
           log.info(message)
         end
@@ -467,11 +470,20 @@ module Fluent::Plugin
           @key => lines.join(@separator)
         }
         tag, time, record = elements.first
-        message = "Flush remaining buffer: #{stream_identity.join(":")}"
+        message = "Flush remaining buffer: #{stream_identity_label(stream_identity)}"
         handle_timeout_error(tag, time, record.merge(new_record), message)
         log.info(message)
       end
       @buffer.clear
+    end
+
+    # The tag and the identity can have incompatible encodings, for example a
+    # UTF-8 tag and a binary identity, both with non-ASCII bytes. Joining them
+    # must not raise, or the flush would stop before the record is emitted.
+    def stream_identity_label(stream_identity)
+      stream_identity.join(":")
+    rescue Encoding::CompatibilityError
+      stream_identity.map(&:b).join(":")
     end
 
     def handle_timeout_error(tag, time, record, message)
