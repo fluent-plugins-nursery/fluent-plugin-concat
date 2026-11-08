@@ -420,8 +420,9 @@ module Fluent::Plugin
       end
     end
 
-    def flush_buffer(stream_identity, new_element = nil)
-      lines = buffered_lines(@buffer[stream_identity])
+    def flush_buffer(stream_identity, new_element = nil, forced: false)
+      elements = @buffer[stream_identity]
+      lines = forced ? forced_buffered_lines(elements) : buffered_lines(elements)
       _tag, time, first_record = @buffer[stream_identity].first
       new_record = {
         @key => lines.join(@separator)
@@ -442,11 +443,11 @@ module Fluent::Plugin
       elements.map {|_tag, _time, record| record[@key] }
     end
 
-    # Same as buffered_lines, but never raises. At shutdown every buffered
-    # stream must still be flushed, so when the ordinals cannot be sorted
-    # (for example an ordinal that does not respond to to_i) the parts are
-    # joined in the order they arrived.
-    def shutdown_buffered_lines(elements)
+    # Same as buffered_lines, but never raises. A timeout flush or the flush
+    # at shutdown must still flush every buffered stream, so when the
+    # ordinals cannot be sorted (for example an ordinal that does not respond
+    # to to_i) the parts are joined in the order they arrived.
+    def forced_buffered_lines(elements)
       buffered_lines(elements)
     rescue StandardError
       elements.map {|_tag, _time, record| record[@key] }
@@ -461,7 +462,7 @@ module Fluent::Plugin
           expired_stream_identities << stream_identity
           next if @buffer[stream_identity].empty?
           tag = @buffer[stream_identity].first[0]
-          time, flushed_record = flush_buffer(stream_identity)
+          time, flushed_record = flush_buffer(stream_identity, forced: true)
           message = "Timeout flush: #{stream_identity_label(stream_identity)}"
           handle_timeout_error(tag, @use_first_timestamp ? time : now, flushed_record, message)
           log.info(message)
@@ -483,7 +484,7 @@ module Fluent::Plugin
       @buffer.each do |stream_identity, elements|
         next if elements.empty?
 
-        lines = shutdown_buffered_lines(elements)
+        lines = forced_buffered_lines(elements)
         new_record = {
           @key => lines.join(@separator)
         }

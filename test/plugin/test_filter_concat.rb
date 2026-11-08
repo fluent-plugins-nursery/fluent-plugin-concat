@@ -1436,6 +1436,45 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(1, state[:buffer][["test", "partial1"]].size)
       assert_equal([["test", "partial1"]], state[:timeout_map].keys)
     end
+
+    test "unconvertible ordinal does not stop the timeout flush of other streams" do
+      config = <<-CONFIG
+        key message
+        use_partial_metadata true
+        flush_interval 1s
+      CONFIG
+      messages = [
+        {
+          "message" => "complete",
+          "partial_message" => "true",
+          "partial_id" => "done",
+          "partial_ordinal" => "1",
+          "partial_last" => "true"
+        },
+        {
+          "message" => "bad",
+          "partial_message" => "true",
+          "partial_id" => "bad",
+          "partial_ordinal" => true,
+          "partial_last" => "false"
+        },
+        {
+          "message" => "good",
+          "partial_message" => "true",
+          "partial_id" => "good",
+          "partial_ordinal" => "1",
+          "partial_last" => "false"
+        },
+      ]
+      d, state = run_and_snapshot_state(config, messages, advance: 2)
+      assert_equal([{ "message" => "complete" }], d.filtered_records)
+      assert_equal(["bad", "good"],
+                   d.error_events.map {|_tag, _time, record, _error| record["message"] }.sort)
+      assert(d.logs.none? {|line| line.include?("failed to flush timeout buffer") })
+      assert_equal({}, state[:buffer])
+      assert_equal({}, state[:buffer_size])
+      assert_equal({}, state[:timeout_map])
+    end
   end
 
   sub_test_case "overflow" do
