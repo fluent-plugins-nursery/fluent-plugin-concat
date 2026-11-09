@@ -191,6 +191,12 @@ module Fluent::Plugin
             next
           end
         end
+        if @mode == :partial_cri
+          unless record.key?(@partial_cri_logtag_key)
+            new_es.add(time, record)
+            next
+          end
+        end
         begin
           flushed_es = process(tag, time, record)
           unless flushed_es.empty?

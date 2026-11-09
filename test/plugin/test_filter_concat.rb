@@ -1241,6 +1241,23 @@ class FilterConcatTest < Test::Unit::TestCase
         {"message" => "First line of log entry 2\nSecond line of the log entry 2\nLast line of the log entry 2"}]
       assert_equal(expected, filtered)
     end
+
+    test "record without the logtag key is passed through" do
+      config = <<-CONFIG
+        key message
+        use_partial_cri_logtag true
+        partial_cri_logtag_key logtag
+      CONFIG
+      messages = [
+        {"message" => "plain line"},
+        {"stream" => "stdout", "logtag" => "F", "message" => "cri line"},
+      ]
+      filtered = filter(config, messages, wait: 3)
+      expected = [
+        {"message" => "plain line"},
+        {"message" => "cri line"}]
+      assert_equal(expected, filtered)
+    end
   end
 
   sub_test_case "raise exception in on_timer" do
