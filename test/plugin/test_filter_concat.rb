@@ -217,6 +217,24 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
+    test "stream identity with colons in the tag and the identity value" do
+      d = create_driver(%[
+        key message
+        n_lines 2
+        stream_identity_key container_id
+      ])
+      d.run do
+        sleep 0.1 # run event loop
+        d.feed("app:web", @time, { "container_id" => "1", "message" => "from app:web" })
+        d.feed("app", @time, { "container_id" => "web:1", "message" => "from app" })
+        d.feed("app:web", @time, { "container_id" => "1", "message" => "again from app:web" })
+      end
+      expected = [
+        { "container_id" => "1", "message" => "from app:web\nagain from app:web" },
+      ]
+      assert_equal(expected, d.filtered_records)
+    end
+
     test "timeout" do
       messages = [
         { "container_id" => "1", "message" => "message 1" },
@@ -263,6 +281,98 @@ class FilterConcatTest < Test::Unit::TestCase
       assert(d.logs.any? {|line| line.include?("Timeout flush: #{tag}:default") })
     ensure
       Fluent::Engine.now = @time
+    end
+
+    test "shutdown flush with a tag and an identity of incompatible encodings" do
+      d = create_driver(%[
+        key message
+        n_lines 3
+        stream_identity_key container_id
+      ])
+      d.run(default_tag: "app.ログ") do
+        sleep 0.1 # run event loop
+        d.feed(@time, { "container_id" => "\xE3\x81\x82".b, "message" => "a" })
+        d.feed("other", @time, { "container_id" => "1", "message" => "other" })
+      end
+      errored = d.error_events.map {|_tag, _time, record, error| [record["message"], error.class] }
+      expected = [
+        ["a", Fluent::Plugin::ConcatFilter::TimeoutError],
+        ["other", Fluent::Plugin::ConcatFilter::TimeoutError],
+      ]
+      assert_equal(expected, errored)
+      assert_equal([], d.filtered_records)
+      assert(d.logs.none? {|line| line.include?("CompatibilityError") })
+    end
+
+    test "timeout flush with a tag and an identity of incompatible encodings" do
+      d = create_driver(%[
+        key message
+        n_lines 3
+        stream_identity_key container_id
+        flush_interval 1s
+      ])
+      d.run(default_tag: "app.ログ") do
+        sleep 0.1 # run event loop
+        d.feed(@time, { "container_id" => "\xE3\x81\x82".b, "message" => "a" })
+        d.feed(@time, { "container_id" => "\xE3\x81\x82".b, "message" => "b" })
+        d.feed("other", @time, { "container_id" => "1", "message" => "other" })
+        # Fluent::Test.setup freezes Fluent::Engine.now, so advance it and
+        # wait for the next tick of the timer to flush by timeout.
+        Fluent::Engine.now = Fluent::EventTime.new(@time.sec + 3, @time.nsec)
+        sleep 2
+      end
+      errored = d.error_events.map {|_tag, _time, record, error| [record["message"], error.class] }
+      expected = [
+        ["a\nb", Fluent::Plugin::ConcatFilter::TimeoutError],
+        ["other", Fluent::Plugin::ConcatFilter::TimeoutError],
+      ]
+      assert_equal(expected, errored)
+      assert(d.logs.none? {|line| line.include?("failed to flush timeout buffer") })
+    ensure
+      Fluent::Engine.now = @time
+    end
+
+    test "stored stream identity does not change with the emitted record" do
+      d = create_driver(%[
+        key message
+        n_lines 2
+        stream_identity_key container_id
+        flush_interval 1s
+      ])
+      state = nil
+      d.run(default_tag: "app") do
+        sleep 0.1 # run event loop
+        d.feed(@time, { "container_id" => String.new("1"), "message" => "message 1" })
+        d.feed(@time, { "container_id" => String.new("1"), "message" => "message 2" })
+        d.filtered_records.first["container_id"] << "-changed"
+        Fluent::Engine.now = Fluent::EventTime.new(@time.sec + 3, @time.nsec)
+        sleep 2
+        state = {
+          buffer: d.instance.instance_variable_get(:@buffer).dup,
+          timeout_map: d.instance.instance_variable_get(:@timeout_map).dup,
+        }
+      end
+      assert_equal([{ "container_id" => "1-changed", "message" => "message 1\nmessage 2" }], d.filtered_records)
+      assert_equal({}, state[:buffer])
+      assert_equal({}, state[:timeout_map])
+    ensure
+      Fluent::Engine.now = @time
+    end
+
+    test "identity changed in place while its line is buffered" do
+      d = create_driver(%[
+        key message
+        n_lines 2
+        stream_identity_key container_id
+      ])
+      d.run(default_tag: "app") do
+        sleep 0.1 # run event loop
+        first = { "container_id" => String.new("1"), "message" => "message 1" }
+        d.feed(@time, first)
+        first["container_id"] << "-changed"
+        d.feed(@time, { "container_id" => "1", "message" => "message 2" })
+      end
+      assert_equal(["message 1\nmessage 2"], d.filtered_records.map {|record| record["message"] })
     end
 
     test "no timeout" do
@@ -1268,9 +1378,9 @@ class FilterConcatTest < Test::Unit::TestCase
       CONFIG
       messages = [partial_messages("partial1").first]
       d, state = run_and_snapshot_state(config, messages, advance: 2)
-      assert_equal(["test:partial1"], state[:buffer].keys)
-      assert_equal(1, state[:buffer]["test:partial1"].size)
-      assert_equal(["test:partial1"], state[:timeout_map].keys)
+      assert_equal([["test", "partial1"]], state[:buffer].keys)
+      assert_equal(1, state[:buffer][["test", "partial1"]].size)
+      assert_equal([["test", "partial1"]], state[:timeout_map].keys)
     end
   end
 
