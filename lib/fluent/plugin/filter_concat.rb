@@ -248,20 +248,24 @@ module Fluent::Plugin
           stream_identity = [key_tag, "default"]
         end
       end
+      # The timer thread flushes and purges @buffer in flush_timeout_buffer
+      # under the same mutex, so updating the timestamp and the buffer must be
+      # one step. Otherwise the timer can flush a stream between the two and
+      # purge or read the buffer while this thread changes it.
       @timeout_map_mutex.synchronize do
         @timeout_map[stream_identity] = Fluent::Engine.now
-      end
-      case @mode
-      when :line
-        process_line(stream_identity, tag, time, record)
-      when :partial
-        process_partial(stream_identity, tag, time, record)
-      when :partial_metadata
-        process_partial_metadata(stream_identity, tag, time, record)
-      when :partial_cri
-        process_partial_cri(stream_identity, tag, time, record)
-      when :regexp
-        process_regexp(stream_identity, tag, time, record)
+        case @mode
+        when :line
+          process_line(stream_identity, tag, time, record)
+        when :partial
+          process_partial(stream_identity, tag, time, record)
+        when :partial_metadata
+          process_partial_metadata(stream_identity, tag, time, record)
+        when :partial_cri
+          process_partial_cri(stream_identity, tag, time, record)
+        when :regexp
+          process_regexp(stream_identity, tag, time, record)
+        end
       end
     end
 

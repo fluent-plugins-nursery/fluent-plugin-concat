@@ -1283,6 +1283,60 @@ class FilterConcatTest < Test::Unit::TestCase
     end
   end
 
+  sub_test_case "timeout flush racing with an incoming event" do
+    teardown do
+      Fluent::Engine.now = @time
+    end
+
+    test "the timer waits for the event that is being buffered" do
+      d = create_driver(CONFIG + "flush_interval 2")
+      plugin = d.instance
+      errored = []
+      stub(plugin.router).emit_error_event do |_tag, _time, record, _error|
+        errored << record["message"]
+      end
+      feed = lambda do |message|
+        es = Fluent::MultiEventStream.new
+        es.add(@time, { "message" => message })
+        plugin.filter_stream("test", es).map {|_time, record| record["message"] }
+      end
+      feed.call("first")
+      feed.call("second")
+
+      # Pause the input thread after the stream timestamp is updated and
+      # before the event is added to the buffer.
+      paused = Queue.new
+      resume = Queue.new
+      plugin.singleton_class.prepend(Module.new do
+        define_method(:process_line) do |*args|
+          if Thread.current[:pause]
+            paused << true
+            resume.pop
+          end
+          super(*args)
+        end
+      end)
+      input = Thread.new do
+        Thread.current[:pause] = true
+        feed.call("third")
+      end
+      paused.pop
+
+      # The stream is now older than flush_interval for the timer.
+      Fluent::Engine.now = Fluent::EventTime.new(@time.sec + 3, @time.nsec)
+      timer = Thread.new { plugin.send(:on_timer) }
+      Thread.pass until timer.stop? || !timer.alive?
+      resume << true
+
+      assert_equal(["first\nsecond\nthird"], input.value)
+      timer.join
+      assert_equal([], errored)
+      assert(d.logs.none? {|line| line.include?("failed to flush timeout buffer") })
+      assert_equal({}, plugin.instance_variable_get(:@buffer))
+      assert_equal({}, plugin.instance_variable_get(:@timeout_map))
+    end
+  end
+
   sub_test_case "stale stream state cleanup" do
     def partial_messages(partial_id)
       [
