@@ -1441,6 +1441,24 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal({}, state[:timeout_map])
     end
 
+    test "purges state for streams which completed normally with flush_interval 0" do
+      config = <<-CONFIG
+        key message
+        use_partial_metadata true
+        flush_interval 0
+      CONFIG
+      messages = partial_messages("partial1") + partial_messages("partial2") + [partial_messages("partial3").first]
+      d, state = run_and_snapshot_state(config, messages, advance: 2)
+      expected = [
+        { "container_id" => "1", "message" => "start\nend" },
+        { "container_id" => "1", "message" => "start\nend" },
+      ]
+      assert_equal(expected, d.filtered_records)
+      assert_equal([["test", "partial3"]], state[:buffer].keys)
+      assert_equal([["test", "partial3"]], state[:timeout_map].keys)
+      assert_equal([], state[:buffer_size].keys - [["test", "partial3"]])
+    end
+
     test "keeps state for in-flight streams within flush_interval" do
       config = <<-CONFIG
         key message

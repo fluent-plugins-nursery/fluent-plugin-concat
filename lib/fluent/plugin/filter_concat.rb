@@ -260,19 +260,32 @@ module Fluent::Plugin
       # purge or read the buffer while this thread changes it.
       @timeout_map_mutex.synchronize do
         @timeout_map[stream_identity] = Fluent::Engine.now
-        case @mode
-        when :line
-          process_line(stream_identity, tag, time, record)
-        when :partial
-          process_partial(stream_identity, tag, time, record)
-        when :partial_metadata
-          process_partial_metadata(stream_identity, tag, time, record)
-        when :partial_cri
-          process_partial_cri(stream_identity, tag, time, record)
-        when :regexp
-          process_regexp(stream_identity, tag, time, record)
-        end
+        new_es = case @mode
+                 when :line
+                   process_line(stream_identity, tag, time, record)
+                 when :partial
+                   process_partial(stream_identity, tag, time, record)
+                 when :partial_metadata
+                   process_partial_metadata(stream_identity, tag, time, record)
+                 when :partial_cri
+                   process_partial_cri(stream_identity, tag, time, record)
+                 when :regexp
+                   process_regexp(stream_identity, tag, time, record)
+                 end
+        # A stream without buffered events has nothing left to flush, so its
+        # state is removed here. Otherwise it stays until the timer purges
+        # it, and with flush_interval 0 the timer never does, so the state
+        # of every stream (one per split message in partial metadata mode)
+        # would stay in memory forever.
+        purge_stream_state(stream_identity) if @buffer[stream_identity].empty?
+        new_es
       end
+    end
+
+    def purge_stream_state(stream_identity)
+      @timeout_map.delete(stream_identity)
+      @buffer.delete(stream_identity)
+      @buffer_size.delete(stream_identity)
     end
 
     def process_line(stream_identity, tag, time, record)
@@ -479,9 +492,7 @@ module Fluent::Plugin
         # unboundedly (notably in partial metadata mode where every split
         # message has a unique stream identity).
         expired_stream_identities.each do |stream_identity|
-          @timeout_map.delete(stream_identity)
-          @buffer.delete(stream_identity)
-          @buffer_size.delete(stream_identity)
+          purge_stream_state(stream_identity)
         end
       end
     end
