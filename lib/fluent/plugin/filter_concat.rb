@@ -390,8 +390,9 @@ module Fluent::Plugin
             @buffer[stream_identity] << [tag, time, record]
           else
             new_time, new_record = flush_buffer(stream_identity)
-            time = new_time if @use_first_timestamp
-            new_es.add(time, new_record)
+            # Only the flushed multiline takes the timestamp of its first
+            # line. The current line is not part of it and keeps its own.
+            new_es.add(@use_first_timestamp ? new_time : time, new_record)
             new_es.add(time, record)
           end
         end
