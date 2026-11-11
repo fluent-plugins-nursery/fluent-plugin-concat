@@ -1,5 +1,22 @@
 require "helper"
 require "fluent/test/driver/filter"
+require "fluent/plugin/output"
+
+class FilterConcatTestCaptureOutput < Fluent::Plugin::Output
+  Fluent::Plugin.register_output("concat_test_capture", self)
+
+  attr_reader :messages
+
+  def initialize
+    super
+    @messages = []
+  end
+
+  def process(_tag, es)
+    es.each {|_time, record| @messages << record["message"] }
+  end
+end
+
 class FilterConcatTest < Test::Unit::TestCase
   def setup
     Fluent::Test.setup
@@ -1509,6 +1526,99 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal({}, state[:buffer])
       assert_equal({}, state[:buffer_size])
       assert_equal({}, state[:timeout_map])
+    end
+  end
+
+  sub_test_case "shutdown flush while another plugin emits" do
+    # Runs the filter with the real root agent and labels. Stream A has one
+    # line buffered and was seen before stream B. The shutdown flush of A
+    # waits while another thread emits the lines of B into the same label,
+    # like another plugin of the label emitting while it shuts down.
+    def run_shutdown_flush(conf, seed, during_flush)
+      Fluent::Engine.configure(Fluent::Config.parse(conf, "(test)", ".", true))
+      agent = Fluent::Engine.root_agent
+      agent.start
+      label = agent.find_label("@X")
+      router = label.event_router
+      errors = []
+      router.define_singleton_method(:emit_error_event) do |_tag, _time, record, e|
+        errors << [record["message"], e.class]
+      end
+      emit_lines = lambda do |records|
+        records.each {|record| router.emit("app.log", Fluent::Engine.now, record) }
+      end
+      emitter = nil
+      filter = label.filters.first
+      filter.singleton_class.prepend(Module.new do
+        define_method(:handle_timeout_error) do |*args|
+          if args[2]["cid"] == "A"
+            emitter = Thread.new { emit_lines.call(during_flush) }
+            # Bounded, so a flush that blocks the emitter does not hang here.
+            emitter.join(5)
+          end
+          super(*args)
+        end
+      end)
+      emit_lines.call(seed)
+      output = label.outputs.first
+      output.messages.clear
+      agent.shutdown
+      emitter&.join
+      [output.messages, errors]
+    end
+
+    def stream_config
+      <<~CONFIG
+        <label @X>
+          <filter app.**>
+            @type concat
+            key message
+            n_lines 2
+            stream_identity_key cid
+            flush_interval 0
+          </filter>
+          <match app.**>
+            @type concat_test_capture
+          </match>
+        </label>
+      CONFIG
+    end
+
+    def lines(stream, *messages)
+      messages.map {|message| { "cid" => stream, "message" => message } }
+    end
+
+    timeout_error = Fluent::Plugin::ConcatFilter::TimeoutError
+    data("completed stream gets a new record",
+         [%w[b1 b2], %w[b3 b4], ["b3\nb4"], [["a1", timeout_error]]])
+    data("completed stream gets a new buffered line",
+         [%w[b1 b2], %w[b3], [], [["a1", timeout_error], ["b3", timeout_error]]])
+    data("buffered stream is completed",
+         [%w[b1], %w[b2], ["b1\nb2"], [["a1", timeout_error]]])
+    test "keeps the records emitted during the flush" do |(seed, during_flush, expected_output, expected_errors)|
+      output, errors = run_shutdown_flush(stream_config, lines("A", "a1") + lines("B", *seed), lines("B", *during_flush))
+      assert_equal(expected_output, output)
+      assert_equal(expected_errors, errors)
+    end
+
+    test "timeout_label pointing back to the label of the filter" do
+      config = <<~CONFIG
+        <label @X>
+          <filter app.**>
+            @type concat
+            key message
+            n_lines 2
+            flush_interval 0
+            timeout_label @X
+          </filter>
+          <match app.**>
+            @type concat_test_capture
+          </match>
+        </label>
+      CONFIG
+      output, errors = run_shutdown_flush(config, [{ "message" => "a1" }], [])
+      assert_equal(["a1\na1"], output)
+      assert_equal([], errors)
     end
   end
 
