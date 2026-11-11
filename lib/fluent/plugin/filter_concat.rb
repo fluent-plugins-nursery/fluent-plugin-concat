@@ -246,7 +246,9 @@ module Fluent::Plugin
       key_tag = tag.dup.freeze
       if @mode == :partial_metadata
         if @stream_identity_key
-          stream_identity = [key_tag, %Q(#{record[@stream_identity_key]}#{record[@partial_id_field]}).freeze]
+          # The identity and the partial ID are separate elements, so that
+          # for example "web1" + "23" and "web12" + "3" are different streams.
+          stream_identity = [key_tag, record[@stream_identity_key].to_s.dup.freeze, record[@partial_id_field].to_s.dup.freeze]
         else
           stream_identity = [key_tag, record[@partial_id_field].to_s.dup.freeze]
         end

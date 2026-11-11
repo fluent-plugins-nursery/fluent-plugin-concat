@@ -1161,6 +1161,31 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(["bad", "good"],
                    d.error_events.map {|_tag, _time, record, _error| record["message"] }.sort)
     end
+
+    test "stream_identity_key, identity and partial_id joining to the same string are different streams" do
+      config = <<-CONFIG
+        key message
+        use_partial_metadata true
+        stream_identity_key container_name
+      CONFIG
+      messages = [
+        {"container_name" => "web1", "partial_message" => "true", "partial_id" => "23",
+         "partial_ordinal" => "1", "partial_last" => "false", "message" => "A1"},
+        {"container_name" => "web12", "partial_message" => "true", "partial_id" => "3",
+         "partial_ordinal" => "1", "partial_last" => "false", "message" => "B1"},
+        {"container_name" => "web1", "partial_message" => "true", "partial_id" => "23",
+         "partial_ordinal" => "2", "partial_last" => "true", "message" => "A2"},
+      ]
+      d = create_driver(config)
+      d.run(default_tag: "test") do
+        sleep 0.1 # run event loop
+        messages.each do |message|
+          d.feed(@time, message)
+        end
+      end
+      assert_equal([{"container_name" => "web1", "message" => "A1\nA2"}], d.filtered_records)
+      assert_equal(["B1"], d.error_events.map {|_tag, _time, record, _error| record["message"] })
+    end
   end
 
   sub_test_case "use first timestamp" do
