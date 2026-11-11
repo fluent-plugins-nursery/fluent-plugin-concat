@@ -139,6 +139,9 @@ module Fluent::Plugin
         end
       when @use_partial_cri_logtag
         @mode = :partial_cri
+        if @partial_cri_logtag_key.nil?
+          raise Fluent::ConfigError, "partial_cri_logtag_key is required when use_partial_cri_logtag is specified"
+        end
         @partial_logtag_delimiter = ":".freeze
         @partial_logtag_continue = "P".freeze
         @partial_logtag_full = "F".freeze

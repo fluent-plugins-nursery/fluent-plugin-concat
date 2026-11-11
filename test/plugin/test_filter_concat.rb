@@ -105,6 +105,26 @@ class FilterConcatTest < Test::Unit::TestCase
       end
     end
 
+    test "use_partial_cri_logtag is specified but partial_cri_logtag_key is missing" do
+      assert_raise(Fluent::ConfigError.new("partial_cri_logtag_key is required when use_partial_cri_logtag is specified")) do
+        create_driver(<<-CONFIG)
+          key message
+          use_partial_cri_logtag true
+          partial_cri_stream_key stream
+        CONFIG
+      end
+    end
+
+    test "partial_cri_logtag_key is not required when use_partial_metadata selects the mode" do
+      assert_nothing_raised do
+        create_driver(<<-CONFIG)
+          key message
+          use_partial_metadata true
+          use_partial_cri_logtag true
+        CONFIG
+      end
+    end
+
     test "n_lines" do
       d = create_driver
       assert_equal(:line, d.instance.instance_variable_get(:@mode))
