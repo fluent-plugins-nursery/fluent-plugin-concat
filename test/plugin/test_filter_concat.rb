@@ -1197,7 +1197,7 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
-    test "a line that ends the multiline keeps its own timestamp" do
+    test "a standalone line after a multiline keeps its own timestamp" do
       config = <<-CONFIG
         key message
         multiline_start_regexp /^start/
