@@ -1242,6 +1242,26 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
+    test "a standalone line after a multiline keeps its own timestamp" do
+      config = <<-CONFIG
+        key message
+        multiline_start_regexp /^start/
+        continuous_line_regexp /^ /
+        use_first_timestamp true
+      CONFIG
+      messages = [
+        [@time, { "container_id" => "1", "message" => "start" }],
+        [@time + 1, { "container_id" => "1", "message" => "  message 1" }],
+        [@time + 2, { "container_id" => "1", "message" => "single line message" }],
+      ]
+      expected = [
+        [@time, { "container_id" => "1", "message" => "start\n  message 1" }],
+        [@time + 2, { "container_id" => "1", "message" => "single line message" }],
+      ]
+      filtered = filter_with_time(config, messages)
+      assert_equal(expected, filtered)
+    end
+
     test "disable timeout" do
       config = <<-CONFIG
         key message
