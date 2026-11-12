@@ -265,19 +265,32 @@ module Fluent::Plugin
       # purge or read the buffer while this thread changes it.
       @timeout_map_mutex.synchronize do
         @timeout_map[stream_identity] = Fluent::Engine.now
-        case @mode
-        when :line
-          process_line(stream_identity, tag, time, record)
-        when :partial
-          process_partial(stream_identity, tag, time, record)
-        when :partial_metadata
-          process_partial_metadata(stream_identity, tag, time, record)
-        when :partial_cri
-          process_partial_cri(stream_identity, tag, time, record)
-        when :regexp
-          process_regexp(stream_identity, tag, time, record)
-        end
+        new_es = case @mode
+                 when :line
+                   process_line(stream_identity, tag, time, record)
+                 when :partial
+                   process_partial(stream_identity, tag, time, record)
+                 when :partial_metadata
+                   process_partial_metadata(stream_identity, tag, time, record)
+                 when :partial_cri
+                   process_partial_cri(stream_identity, tag, time, record)
+                 when :regexp
+                   process_regexp(stream_identity, tag, time, record)
+                 end
+        # A stream without buffered events has nothing left to flush, so its
+        # state is removed here. Otherwise it stays until the timer purges
+        # it, and with flush_interval 0 the timer never does, so the state
+        # of every stream (one per split message in partial metadata mode)
+        # would stay in memory forever.
+        purge_stream_state(stream_identity) if @buffer[stream_identity].empty?
+        new_es
       end
+    end
+
+    def purge_stream_state(stream_identity)
+      @timeout_map.delete(stream_identity)
+      @buffer.delete(stream_identity)
+      @buffer_size.delete(stream_identity)
     end
 
     def process_line(stream_identity, tag, time, record)
@@ -479,33 +492,46 @@ module Fluent::Plugin
           handle_timeout_error(tag, @use_first_timestamp ? time : now, flushed_record, message)
           log.info(message)
         end
-        # Purge expired streams from all the state hashes, not only the
-        # flushed ones. Streams which completed normally leave empty entries
-        # behind, so @buffer/@buffer_size/@timeout_map would otherwise grow
-        # unboundedly (notably in partial metadata mode where every split
-        # message has a unique stream identity).
+        # Purge expired streams from all the state hashes: the streams flushed
+        # above, and the empty state left behind when process or an earlier
+        # timeout flush raised before the state of the stream was removed.
         expired_stream_identities.each do |stream_identity|
-          @timeout_map.delete(stream_identity)
-          @buffer.delete(stream_identity)
-          @buffer_size.delete(stream_identity)
+          purge_stream_state(stream_identity)
         end
       end
     end
 
     def flush_remaining_buffer
-      @buffer.each do |stream_identity, elements|
-        next if elements.empty?
+      # Another plugin of the same label can emit into this filter while it
+      # shuts down, so process can add a stream to @buffer from another thread
+      # during this flush. Iterating @buffer itself would make that thread
+      # raise "can't add a new key into hash during iteration", so the streams
+      # are taken from snapshots of the keys, until no new stream shows up.
+      # The record is emitted outside the mutex, because an emit to a
+      # timeout_label that leads back to this filter calls process again.
+      flushed = {}
+      loop do
+        stream_identities = @timeout_map_mutex.synchronize { @buffer.keys }.reject {|stream_identity| flushed.key?(stream_identity) }
+        break if stream_identities.empty?
 
-        lines = forced_buffered_lines(elements)
-        new_record = {
-          @key => lines.join(@separator)
-        }
-        tag, time, record = elements.first
-        message = "Flush remaining buffer: #{stream_identity_label(stream_identity)}"
-        handle_timeout_error(tag, time, record.merge(new_record), message)
-        log.info(message)
+        stream_identities.each do |stream_identity|
+          flushed[stream_identity] = true
+          tag, time, record = @timeout_map_mutex.synchronize do
+            elements = @buffer.fetch(stream_identity, nil)
+            next if elements.nil? || elements.empty?
+
+            lines = forced_buffered_lines(elements)
+            first_tag, first_time, first_record = elements.first
+            [first_tag, first_time, first_record.merge(@key => lines.join(@separator))]
+          end
+          next unless record
+
+          message = "Flush remaining buffer: #{stream_identity_label(stream_identity)}"
+          handle_timeout_error(tag, time, record, message)
+          log.info(message)
+        end
       end
-      @buffer.clear
+      @timeout_map_mutex.synchronize { @buffer.clear }
     end
 
     # The tag and the identity can have incompatible encodings, for example a
