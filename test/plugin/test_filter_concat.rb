@@ -1346,7 +1346,12 @@ class FilterConcatTest < Test::Unit::TestCase
          "CRI" => [%[
            use_partial_cri_logtag true
            partial_cri_logtag_key logtag
-         ], { "stream" => "stdout", "logtag" => "P" }, {}])
+         ], { "stream" => "stdout", "logtag" => "P" }, {}],
+         "CRI with keep_partial_key" => [%[
+           use_partial_cri_logtag true
+           partial_cri_logtag_key logtag
+           keep_partial_key true
+         ], { "stream" => "stdout", "logtag" => "P" }, { "logtag" => "P" }])
     test "shutdown flush removes them like a normal flush" do |(conf, partial_fields, kept_fields)|
       d = create_driver("key message\n" + conf)
       d.run(default_tag: "test") do
@@ -1379,6 +1384,7 @@ class FilterConcatTest < Test::Unit::TestCase
         sleep 2
       end
       assert_equal([{ "message" => "first\nsecond" }], errored)
+      assert(d.logs.any? {|line| line.include?("Timeout flush: test:default") })
     ensure
       Fluent::Engine.now = @time
     end
