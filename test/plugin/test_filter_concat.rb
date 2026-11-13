@@ -1325,6 +1325,71 @@ class FilterConcatTest < Test::Unit::TestCase
     end
   end
 
+  sub_test_case "partial fields of a forced flush" do
+    data("partial_key" => [%[
+           partial_key partial_message
+           partial_value true
+         ], { "partial_message" => "true" }, {}],
+         "partial_key with keep_partial_key" => [%[
+           partial_key partial_message
+           partial_value true
+           keep_partial_key true
+         ], { "partial_message" => "true" }, { "partial_message" => "true" }],
+         "partial metadata" => [%[
+           use_partial_metadata true
+         ], { "partial_message" => "true", "partial_id" => "p1", "partial_ordinal" => "1", "partial_last" => "false" }, {}],
+         "partial metadata with keep_partial_metadata" => [%[
+           use_partial_metadata true
+           keep_partial_metadata true
+         ], { "partial_message" => "true", "partial_id" => "p1", "partial_ordinal" => "1", "partial_last" => "false" },
+            { "partial_message" => "true", "partial_id" => "p1", "partial_ordinal" => "1", "partial_last" => "false" }],
+         "CRI" => [%[
+           use_partial_cri_logtag true
+           partial_cri_logtag_key logtag
+         ], { "stream" => "stdout", "logtag" => "P" }, {}],
+         "CRI with keep_partial_key" => [%[
+           use_partial_cri_logtag true
+           partial_cri_logtag_key logtag
+           keep_partial_key true
+         ], { "stream" => "stdout", "logtag" => "P" }, { "logtag" => "P" }])
+    test "shutdown flush removes them like a normal flush" do |(conf, partial_fields, kept_fields)|
+      d = create_driver("key message\n" + conf)
+      d.run(default_tag: "test") do
+        sleep 0.1 # run event loop
+        d.feed(@time, { "container_id" => "1", "message" => "first" }.merge(partial_fields))
+        d.feed(@time, { "container_id" => "1", "message" => "second" }.merge(partial_fields))
+      end
+      expected = [{ "container_id" => "1", "message" => "first\nsecond" }.merge(kept_fields)]
+      assert_equal(expected, d.error_events.map {|_tag, _time, record, _error| record })
+    end
+
+    test "timeout flush removes them like a normal flush" do
+      d = create_driver(%[
+        key message
+        use_partial_cri_logtag true
+        partial_cri_logtag_key logtag
+        flush_interval 2s
+      ])
+      errored = []
+      stub(d.instance.router).emit_error_event do |_tag, _time, record, _error|
+        errored << record
+      end
+      d.run(default_tag: "test") do
+        sleep 0.1 # run event loop
+        d.feed(@time, { "stream" => "stdout", "logtag" => "P", "message" => "first" })
+        d.feed(@time, { "stream" => "stdout", "logtag" => "P", "message" => "second" })
+        # Fluent::Test.setup freezes Fluent::Engine.now, so advance it and
+        # wait for the next tick of the timer to flush by timeout.
+        Fluent::Engine.now = Fluent::EventTime.new(@time.sec + 3, @time.nsec)
+        sleep 2
+      end
+      assert_equal([{ "message" => "first\nsecond" }], errored)
+      assert(d.logs.any? {|line| line.include?("Timeout flush: test:default") })
+    ensure
+      Fluent::Engine.now = @time
+    end
+  end
+
   sub_test_case "raise exception in on_timer" do
     # See also https://github.com/fluent/fluentd/issues/1946
     test "failed to flush timeout buffer" do

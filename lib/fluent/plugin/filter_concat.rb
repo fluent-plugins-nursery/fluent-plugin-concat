@@ -205,21 +205,7 @@ module Fluent::Plugin
           unless flushed_es.empty?
             flushed_es.each do |_time, new_record|
               time = _time if @use_first_timestamp
-              merged_record = record.merge(new_record)
-              case @mode
-              when :partial
-                merged_record.delete(@partial_key) unless @keep_partial_key
-              when :partial_metadata
-                unless @keep_partial_metadata
-                  merged_record.delete(@partial_message_field)
-                  merged_record.delete(@partial_id_field)
-                  merged_record.delete(@partial_ordinal_field)
-                  merged_record.delete(@partial_last_field)
-                end
-              when :partial_cri
-                merged_record.delete(@partial_cri_logtag_key) unless @keep_partial_key
-                merged_record.delete(@partial_cri_stream_key)
-              end
+              merged_record = remove_partial_fields(record.merge(new_record))
               new_es.add(time, merged_record)
             end
           end
@@ -231,6 +217,26 @@ module Fluent::Plugin
     end
 
     private
+
+    # A record flushed by timeout or at shutdown goes through this as well,
+    # so that it looks like a record flushed normally.
+    def remove_partial_fields(record)
+      case @mode
+      when :partial
+        record.delete(@partial_key) unless @keep_partial_key
+      when :partial_metadata
+        unless @keep_partial_metadata
+          record.delete(@partial_message_field)
+          record.delete(@partial_id_field)
+          record.delete(@partial_ordinal_field)
+          record.delete(@partial_last_field)
+        end
+      when :partial_cri
+        record.delete(@partial_cri_logtag_key) unless @keep_partial_key
+        record.delete(@partial_cri_stream_key)
+      end
+      record
+    end
 
     def on_timer
       return if @flush_interval <= 0
@@ -476,7 +482,7 @@ module Fluent::Plugin
           tag = @buffer[stream_identity].first[0]
           time, flushed_record = flush_buffer(stream_identity, forced: true)
           message = "Timeout flush: #{stream_identity_label(stream_identity)}"
-          handle_timeout_error(tag, @use_first_timestamp ? time : now, flushed_record, message)
+          handle_timeout_error(tag, @use_first_timestamp ? time : now, remove_partial_fields(flushed_record), message)
           log.info(message)
         end
         # Purge expired streams from all the state hashes, not only the
@@ -502,7 +508,7 @@ module Fluent::Plugin
         }
         tag, time, record = elements.first
         message = "Flush remaining buffer: #{stream_identity_label(stream_identity)}"
-        handle_timeout_error(tag, time, record.merge(new_record), message)
+        handle_timeout_error(tag, time, remove_partial_fields(record.merge(new_record)), message)
         log.info(message)
       end
       @buffer.clear
