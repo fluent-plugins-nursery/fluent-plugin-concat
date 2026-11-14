@@ -1699,5 +1699,28 @@ class FilterConcatTest < Test::Unit::TestCase
       ]
       assert_equal(expected, filtered)
     end
+
+    test "new keeps the time of the overflowing record with use_first_timestamp" do
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+        keep_partial_key false
+        buffer_limit_size 80
+        buffer_overflow_method new
+        use_first_timestamp true
+      CONFIG
+      messages = [
+        [@time, { "message" => "a" * 20, "partial_message" => "true" }],
+        [@time + 3, { "message" => "b" * 20, "partial_message" => "true" }],
+        [@time + 5, { "message" => "end", "partial_message" => "false" }],
+      ]
+      filtered = filter_with_time(config, messages)
+      expected = [
+        [@time, { "message" => "a" * 20 }],
+        [@time + 3, { "message" => "#{"b" * 20}\nend" }],
+      ]
+      assert_equal(expected, filtered)
+    end
   end
 end
