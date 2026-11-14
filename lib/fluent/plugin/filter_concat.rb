@@ -312,9 +312,10 @@ module Fluent::Plugin
       end
       if force_flush || @partial_value != record[@partial_key]
         new_time, new_record = flush_buffer(stream_identity)
-        time = new_time if @use_first_timestamp
         new_record.delete(@partial_key)
-        new_es.add(time, new_record)
+        # The record that overflowed is not part of the flushed buffer, so
+        # it keeps its own time for the next buffer.
+        new_es.add(@use_first_timestamp ? new_time : time, new_record)
       end
       if force_flush && @buffer_overflow_method == :new
         @buffer[stream_identity] << [tag, time, record]
