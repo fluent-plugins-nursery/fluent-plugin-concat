@@ -1676,6 +1676,71 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal(expected, filtered)
     end
 
+    data(
+      "truncate" => ["truncate", [{ "message" => "end" }]],
+      "drop" => ["drop", [{ "message" => "end" }]],
+      "new" => ["new", [{ "message" => "x" * 60 }, { "message" => "end" }]],
+    )
+    test "record bigger than buffer_limit_size on an empty buffer" do |(method, expected)|
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+        keep_partial_key false
+        buffer_limit_size 50
+        buffer_overflow_method #{method}
+      CONFIG
+      messages = [
+        { "message" => "x" * 60, "partial_message" => "true" },
+        { "message" => "end", "partial_message" => "false" },
+      ]
+      d = create_driver(config)
+      d.run(default_tag: "test") do
+        messages.each do |message|
+          d.feed(@time, message)
+        end
+      end
+      assert_equal([[], expected], [d.error_events, d.filtered_records])
+    end
+
+    data(
+      "truncate" => ["truncate", []],
+      "drop" => ["drop", []],
+      "new" => ["new", [{ "message" => "x" * 60 }]],
+    )
+    test "last record bigger than buffer_limit_size on an empty buffer" do |(method, expected)|
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+        keep_partial_key false
+        buffer_limit_size 50
+        buffer_overflow_method #{method}
+      CONFIG
+      d = create_driver(config)
+      d.run(default_tag: "test") do
+        d.feed(@time, { "message" => "x" * 60, "partial_message" => "false" })
+      end
+      assert_equal([[], expected], [d.error_events, d.filtered_records])
+    end
+
+    test "last record overflows a non-empty buffer with drop" do
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+        keep_partial_key false
+        buffer_limit_size 60
+        buffer_overflow_method drop
+      CONFIG
+      d = create_driver(config)
+      d.run(default_tag: "test") do
+        d.feed(@time, { "message" => "a" * 20, "partial_message" => "true" })
+        d.feed(@time, { "message" => "b" * 20, "partial_message" => "false" })
+      end
+      assert_equal([[], []], [d.error_events, d.filtered_records])
+    end
+
     test "non-string values" do
       config = <<-CONFIG
         key message
