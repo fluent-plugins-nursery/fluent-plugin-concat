@@ -1724,6 +1724,23 @@ class FilterConcatTest < Test::Unit::TestCase
       assert_equal([[], expected], [d.error_events, d.filtered_records])
     end
 
+    test "last record overflows a non-empty buffer with drop" do
+      config = <<-CONFIG
+        key message
+        partial_key partial_message
+        partial_value true
+        keep_partial_key false
+        buffer_limit_size 60
+        buffer_overflow_method drop
+      CONFIG
+      d = create_driver(config)
+      d.run(default_tag: "test") do
+        d.feed(@time, { "message" => "a" * 20, "partial_message" => "true" })
+        d.feed(@time, { "message" => "b" * 20, "partial_message" => "false" })
+      end
+      assert_equal([[], []], [d.error_events, d.filtered_records])
+    end
+
     test "non-string values" do
       config = <<-CONFIG
         key message
