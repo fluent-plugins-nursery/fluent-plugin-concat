@@ -310,7 +310,9 @@ module Fluent::Plugin
       else
         @buffer[stream_identity] << [tag, time, record]
       end
-      if force_flush || @partial_value != record[@partial_key]
+      # A record bigger than buffer_limit_size overflows an empty buffer, and
+      # drop empties it, so there can be nothing to flush here.
+      if (force_flush || @partial_value != record[@partial_key]) && !@buffer[stream_identity].empty?
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
         new_record.delete(@partial_key)
